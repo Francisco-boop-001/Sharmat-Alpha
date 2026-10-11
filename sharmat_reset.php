@@ -336,9 +336,10 @@ function sharmat_reset_all_data()
             }
 
             sharmat_reset_create_runtime_tables($schema);
+            $pluginSchema = $GLOBALS['db']->escapeLiteral($schema);
             $pluginColumn = $GLOBALS['db']->fetchOne("SELECT 1 AS present FROM information_schema.columns
-                WHERE table_schema = $1 AND table_name = 'core_npc_master'
-                AND column_name = 'plugin_extended_data'", [$schema]);
+                WHERE table_schema = {$pluginSchema} AND table_name = 'core_npc_master'
+                AND column_name = 'plugin_extended_data'");
             if (!empty($pluginColumn['present'])) {
                 sharmat_reset_exec("UPDATE {$qSchema}.core_npc_master
                     SET plugin_extended_data = plugin_extended_data - 'sharmat'

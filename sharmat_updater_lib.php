@@ -767,6 +767,7 @@ function _sharmatValidateStagedRuntime($stageRoot)
         'sharmat_updater_lib.php',
         'scene_role_policy.php',
         'drunk_animation_bridge.php',
+        'npc_plugin_data.php',
         'config_section_defeat.php',
     ];
     foreach ($required as $relative) {

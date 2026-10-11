@@ -54,6 +54,7 @@ function updaterBuildPackage($root)
     updaterWrite($root . '/sharmat_updater_lib.php', '<?php // updater support');
     updaterWrite($root . '/scene_role_policy.php', '<?php // runtime role policy');
     updaterWrite($root . '/drunk_animation_bridge.php', '<?php // drunk animation bridge');
+    updaterWrite($root . '/npc_plugin_data.php', '<?php // NPC data mirror');
     updaterWrite($root . '/config_section_defeat.php', '<?php // runtime defeat UI');
     updaterWrite($root . '/functions.php', '<?php // test');
     updaterWrite($root . '/nsfw_data.php', '<?php // test');
