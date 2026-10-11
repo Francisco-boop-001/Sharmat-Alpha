@@ -29,6 +29,15 @@ function updaterWrite($path, $contents)
     }
 }
 
+$releaseManifest = ['version' => '3.1.9.5', 'mod_download_url' => 'https://github.com/Wondernuttz/Sharmat-Alpha/releases/download/v3.1.9.5/SHARMAT-3.1.9.5.zip'];
+updaterAssert(_sharmatReleaseModDownloadUrl($releaseManifest) === $releaseManifest['mod_download_url'], 'matching release download is accepted');
+$releaseManifest['version'] = '3.1.9.6';
+updaterAssert(_sharmatReleaseModDownloadUrl($releaseManifest) === '', 'stale release URL is rejected');
+$releaseManifest['version'] = '3.1.9.5';
+$releaseManifest['mod_download_url'] = 'https://example.com/unrelated.zip';
+updaterAssert(_sharmatReleaseModDownloadUrl($releaseManifest) === '', 'unrelated redirect is rejected');
+updaterAssert(_sharmatReleaseModDownloadUrl([]) === '', 'legacy manifest keeps existing fallback');
+
 function updaterBuildPackage($root)
 {
     updaterWrite($root . '/manifest.json', json_encode([
@@ -44,6 +53,7 @@ function updaterBuildPackage($root)
     updaterWrite($root . '/config_manager.php', "<?php require_once __DIR__ . '/sharmat_updater_lib.php';");
     updaterWrite($root . '/sharmat_updater_lib.php', '<?php // updater support');
     updaterWrite($root . '/scene_role_policy.php', '<?php // runtime role policy');
+    updaterWrite($root . '/drunk_animation_bridge.php', '<?php // drunk animation bridge');
     updaterWrite($root . '/config_section_defeat.php', '<?php // runtime defeat UI');
     updaterWrite($root . '/functions.php', '<?php // test');
     updaterWrite($root . '/nsfw_data.php', '<?php // test');
@@ -56,6 +66,7 @@ function updaterBuildPackage($root)
     updaterWrite($root . '/mod/Seq/AIAgentNSFW.seq', 'test sequence');
     updaterWrite($root . '/mod/SKSE/Plugins/StorageUtilData/SHARMAT_scene_framework.json', '{"ostim":1,"sexlab":1}');
     updaterWrite($root . '/mod/README.txt', 'Installation instructions');
+    updaterWrite($root . '/mod/meshes/actors/character/animations/OpenAnimationReplacer/Drunk animations/Drunk animations/config.json', '{}');
     updaterWrite($root . '/mod/Source/Scripts/AIAgentNSFWSceneEngine.psc', 'development source');
     updaterWrite($root . '/mod/Scripts/unused.pex', 'unused script');
     updaterWrite($root . '/mod/Source/ignored.bak', 'backup junk');
@@ -105,6 +116,15 @@ try {
     updaterAssert(in_array('cmd/conf/conf.php', $mutable, true), 'command configuration is mutable');
     _sharmatValidateStagedRuntime($extractedRoot);
     updaterAssert(true, 'required runtime files are present');
+    rename($extractedRoot . '/drunk_animation_bridge.php', $extractedRoot . '/drunk_animation_bridge.missing');
+    $missingDrunkBridgeRejected = false;
+    try {
+        _sharmatValidateStagedRuntime($extractedRoot);
+    } catch (RuntimeException $error) {
+        $missingDrunkBridgeRejected = strpos($error->getMessage(), 'drunk_animation_bridge.php') !== false;
+    }
+    updaterAssert($missingDrunkBridgeRejected, 'missing drunk bridge runtime is rejected');
+    rename($extractedRoot . '/drunk_animation_bridge.missing', $extractedRoot . '/drunk_animation_bridge.php');
     rename($extractedRoot . '/scene_role_policy.php', $extractedRoot . '/scene_role_policy.missing');
     $missingRuntimeRejected = false;
     try {
@@ -135,9 +155,10 @@ try {
 
     $modArchivePath = $testRoot . '/game-mod.zip';
     $modFileCount = _sharmatBuildModArchive($extractedRoot . '/mod', $modArchivePath);
-    updaterAssert($modFileCount === 9, 'game-mod archive contains the complete runtime payload');
+    updaterAssert($modFileCount === 10, 'game-mod archive contains the complete runtime payload');
     $modArchive = new ZipArchive();
     updaterAssert($modArchive->open($modArchivePath) === true, 'game-mod archive opens');
+    updaterAssert($modArchive->locateName('meshes/actors/character/animations/OpenAnimationReplacer/Drunk animations/Drunk animations/config.json') !== false, 'game-mod archive contains the drunk compatibility condition');
     updaterAssert($modArchive->locateName('AIAgentNSFW.esp') !== false, 'game-mod archive contains the plugin');
     updaterAssert($modArchive->locateName('Scripts/AIAgentNSFW.pex') !== false, 'game-mod archive contains the compiled script');
     updaterAssert($modArchive->locateName('Scripts/AIAgentNSFWSceneEngine.pex') !== false, 'game-mod archive contains the scene engine');
@@ -146,6 +167,17 @@ try {
     updaterAssert($modArchive->locateName('Source/ignored.bak') === false, 'game-mod archive excludes backup junk');
     updaterAssert($modArchive->locateName('meta.ini') === false, 'game-mod archive excludes mod-manager metadata');
     $modArchive->close();
+
+    $drunkConfigPath = $extractedRoot . '/mod/meshes/actors/character/animations/OpenAnimationReplacer/Drunk animations/Drunk animations/config.json';
+    rename($drunkConfigPath, $drunkConfigPath . '.missing');
+    $missingDrunkConfigRejected = false;
+    try {
+        _sharmatBuildModArchive($extractedRoot . '/mod', $testRoot . '/missing-drunk-config.zip');
+    } catch (RuntimeException $error) {
+        $missingDrunkConfigRejected = strpos($error->getMessage(), 'Drunk animations/config.json') !== false;
+    }
+    updaterAssert($missingDrunkConfigRejected, 'game-mod download rejects a missing drunk compatibility config');
+    rename($drunkConfigPath . '.missing', $drunkConfigPath);
 
     $sceneEnginePath = $extractedRoot . '/mod/Scripts/AIAgentNSFWSceneEngine.pex';
     rename($sceneEnginePath, $sceneEnginePath . '.missing');
@@ -162,7 +194,7 @@ try {
     updaterWrite($extractedRoot . '/mod/CHIM/server-plugins/aiagent_nsfw/9.9.9.dwpkg', 'matching server package');
     updaterWrite($extractedRoot . '/mod/CHIM/server-plugins/aiagent_nsfw/1.0.0.dwpkg', 'stale server package');
     $embeddedArchivePath = $testRoot . '/game-mod-embedded.zip';
-    updaterAssert(_sharmatBuildModArchive($extractedRoot . '/mod', $embeddedArchivePath) === 10, 'matching embedded package is included');
+    updaterAssert(_sharmatBuildModArchive($extractedRoot . '/mod', $embeddedArchivePath) === 11, 'matching embedded package is included');
     updaterAssert($modArchive->open($embeddedArchivePath) === true, 'embedded mod archive opens');
     updaterAssert($modArchive->locateName('CHIM/server-plugins/aiagent_nsfw/9.9.9.dwpkg') !== false, 'current embedded package is present');
     updaterAssert($modArchive->locateName('CHIM/server-plugins/aiagent_nsfw/1.0.0.dwpkg') === false, 'stale embedded package is excluded');

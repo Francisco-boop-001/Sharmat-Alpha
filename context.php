@@ -228,23 +228,20 @@ if ($drunkStage >= 1) {
 // Continuous drunk locomotion = OAR "Drunk animations" mod, gated on a drunk-level actor value.
 // Server starts Variable10 at stage 5, where the persistent sway/idle should begin. Stages 1-4
 // are prompt/voice only. Stage value still leaves room for per-stage OAR conditions later.
-// State-tracked so we only ForceActorValue on a change; reset to 0 when sober or mid-scene.
+// Reset on sober/disabled/scene turns; reassert active state after save loads.
+require_once __DIR__ . '/drunk_animation_bridge.php';
 $_drunkAvChangedThisRequest = false;
-if (_getNsfwSetting("DRUNK_ANIMATIONS", true)) {
-    $avTarget  = ($drunkStage >= 5 && empty($_inSexScene)) ? $drunkStage : 0;
-    $avCurrent = intval($extended_data["aiagent_nsfw_drunk_av"] ?? 0);
-    if ($avTarget !== $avCurrent) {
-        if (!class_exists('SkyrimCommandBuilder')) { require_once __DIR__ . "/../../lib/scriptproxy_papyrus.php"; }
-        if (!class_exists('Npcmaster')) { require_once __DIR__ . "/../../lib/core/npc_master.class.php"; }
-        $refidF = (new Npcmaster())->getByName($actorName)["refid"] ?? null;
-        if (!empty($refidF)) {
-            $cmdF = new SkyrimCommandBuilder();
-            $cmdF->send($cmdF->Actor->ForceActorValue("0x{$refidF}", "Variable10", (float)$avTarget));
-            if ($avTarget > 0) { $extended_data["aiagent_nsfw_drunk_av"] = $avTarget; }
-            else { unset($extended_data["aiagent_nsfw_drunk_av"]); }
-            $_drunkAvChangedThisRequest = true;
-            error_log("[AIAGENTNSFW] Drunk OAR AV for {$actorName}: {$avCurrent} -> {$avTarget}");
-        }
+$_drunkAnimationsEnabled = (bool)_getNsfwSetting("DRUNK_ANIMATIONS", true);
+if (aiagentNsfwDrunkAnimationTarget($drunkStage, $_drunkAnimationsEnabled, !empty($_inSexScene)) > 0
+    || !empty($extended_data["aiagent_nsfw_drunk_av"])) {
+    if (!class_exists('SkyrimCommandBuilder')) { require_once __DIR__ . "/../../lib/scriptproxy_papyrus.php"; }
+    if (!class_exists('Npcmaster')) { require_once __DIR__ . "/../../lib/core/npc_master.class.php"; }
+    $refidF = (new Npcmaster())->getByName($actorName)["refid"] ?? null;
+    if (!empty($refidF)) {
+        $cmdF = new SkyrimCommandBuilder();
+        $_drunkAvChangedThisRequest = aiagentNsfwSyncDrunkAnimation(
+            $refidF, $drunkStage, $_drunkAnimationsEnabled, !empty($_inSexScene), $extended_data, $cmdF
+        );
     }
 }
 

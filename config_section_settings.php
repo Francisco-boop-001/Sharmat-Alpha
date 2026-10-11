@@ -971,7 +971,7 @@ ingredient</textarea>
                         <input type="checkbox" id="drunkAnimations" name="DRUNK_ANIMATIONS" checked>
                         <span>Enable Drunk Animations / Physics</span>
                     </label>
-                    <p class="legend">Master switch for the OAR drunk walk plus the stumble/fall/pass-out reactions. Off = drunk is prompt and voice only.</p>
+                    <p class="legend">Controls SHARMAT's OAR drunk walk and stumble/fall/pass-out reactions. Requires the linked Drunk animations pack and SHARMAT's game-side compatibility config (let SHARMAT win its config.json conflict). Starts at alcohol stage 5 and updates on an NPC context turn. Other mods such as CACO can still trigger their own drunk animations independently.</p>
                 </div>
                 <div class="settings-checkbox-group">
                     <label for="drunkRequireMovement">

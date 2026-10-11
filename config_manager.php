@@ -93,6 +93,7 @@
         handleSharmatRunUpdate();
     } elseif ($action === 'sharmatDownloadMod') {
         handleSharmatDownloadMod();
+        exit;
     } elseif ($action === 'loadGlobalStyles') {
         handleLoadGlobalStyles();
     } elseif ($action === 'loadGlobalStyle') {
@@ -1067,6 +1068,15 @@ SQL;
             }
 
             if ($added === 0) {
+                // Server-only packages need the release matching their manifest,
+                // not an installed-commit marker left by an older updater run.
+                $downloadManifest = json_decode((string)file_get_contents(__DIR__ . '/manifest.json'), true);
+                $releaseDownload = _sharmatReleaseModDownloadUrl(is_array($downloadManifest) ? $downloadManifest : []);
+                if ($releaseDownload !== '') {
+                    header('Cache-Control: no-store');
+                    header('Location: ' . $releaseDownload, true, 302);
+                    return;
+                }
                 // Older installations may not have a local mod/. Download and validate one exact
                 // installed commit, then re-pack only its mod subtree. Fall back to main only when
                 // no valid installed commit has ever been recorded.

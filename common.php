@@ -1185,7 +1185,6 @@ function aiagentNsfwReconcileActorRuntimeAfterRollback($actorName, $currentGamet
         "aiagent_nsfw_prompt_drunk_stage",
         "aiagent_nsfw_last_time_drunk",
         "aiagent_nsfw_last_phys_ts",
-        "aiagent_nsfw_drunk_av",
     ];
     $hasDrunkRuntime = false;
     foreach ($drunkRuntimeKeys as $key) {
@@ -1193,6 +1192,7 @@ function aiagentNsfwReconcileActorRuntimeAfterRollback($actorName, $currentGamet
     }
     if ($hasDrunkRuntime && getDrunkStageForActor($actorName) <= 0) {
         $changed = aiagentNsfwClearKeys($data, $drunkRuntimeKeys) || $changed;
+        // Keep aiagent_nsfw_drunk_av until context.php queues the game-side reset.
         // Do not clear aiagent_nsfw_unconscious here. If paralysis was applied before a save/load rollback,
         // context.php or postrequest.php must still see the marker so it can queue a wake-up.
         error_log("[AIAGENTNSFW] Dragon Break cleanup cleared unsupported alcohol runtime for {$actorName}");

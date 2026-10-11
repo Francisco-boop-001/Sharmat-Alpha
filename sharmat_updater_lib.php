@@ -545,6 +545,17 @@ function _sharmatDownloadExactRepository($sha, $workspace)
     return ['root' => $sourceRoot, 'mutable_paths' => $mutablePaths];
 }
 
+function _sharmatReleaseModDownloadUrl($manifest)
+{
+    $version = (string)($manifest['version'] ?? '');
+    if (!preg_match('/^[0-9]+(?:\.[0-9]+)*$/', $version)) {
+        return '';
+    }
+    $expected = 'https://github.com/Wondernuttz/Sharmat-Alpha/releases/download/v'
+        . $version . '/SHARMAT-' . $version . '.zip';
+    return ($manifest['mod_download_url'] ?? '') === $expected ? $expected : '';
+}
+
 function _sharmatBuildModArchive($modDir, $archivePath)
 {
     if (!is_dir($modDir) || is_link($modDir)) {
@@ -558,6 +569,7 @@ function _sharmatBuildModArchive($modDir, $archivePath)
         'Scripts/AIAgentVRItems.pex',
         'Seq/AIAgentNSFW.seq',
         'SKSE/Plugins/StorageUtilData/SHARMAT_scene_framework.json',
+        'meshes/actors/character/animations/OpenAnimationReplacer/Drunk animations/Drunk animations/config.json',
         'version.txt',
         'README.txt',
     ];
@@ -754,6 +766,7 @@ function _sharmatValidateStagedRuntime($stageRoot)
         'config_manager.php',
         'sharmat_updater_lib.php',
         'scene_role_policy.php',
+        'drunk_animation_bridge.php',
         'config_section_defeat.php',
     ];
     foreach ($required as $relative) {
