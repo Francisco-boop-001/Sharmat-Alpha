@@ -1609,7 +1609,7 @@ class NsfwOstimHandler {
                 $intimacyStatus["partner_affinity"] = $affinity;
                 $intimacyStatus["partner_tier"] = $tier;
                 if (!$npcAffinityGateEnabled) {
-                    $intimacyStatus["cached_tier_prompt"] = "";
+                    // Complete routing without discarding partner-specific emotional context.
                     $intimacyStatus["tier_prompt_sent"] = true;
                 }
 

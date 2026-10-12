@@ -467,6 +467,32 @@ if (!empty($GLOBALS["AIAGENTNSFW_NPC_PARTNER_NAME"])) {
     }
 }
 
+// Apply partner-aware tone after style/default cues, before rechat mirroring.
+// Existing gag, refusal, post-scene and intoxication precedence remains authoritative.
+$_toneActor = $GLOBALS['HERIKA_NAME'] ?? '';
+$_toneStatus = $_toneActor !== '' && function_exists('getIntimacyForActor') ? getIntimacyForActor($_toneActor) : [];
+$_toneEvent = $GLOBALS['gameRequest'][0] ?? '';
+$_toneGag = !empty($_toneStatus['is_npc_scene']) && class_exists('NsfwNpcData') ? (NsfwNpcData::get($_toneActor)['aiagent_nsfw_devices'] ?? '') : '';
+if (function_exists('aiagentNsfwGetNpcSceneTone') && is_array($_toneStatus)
+    && !empty($_toneStatus['is_npc_scene'])
+    && !in_array($_toneEvent, ['ext_nsfw_npc_invite', 'chatnf_sl_end'], true)
+    && empty($GLOBALS['AIAGENTNSFW_PILLOW_TALK_CUE'])
+    && empty($GLOBALS['AIAGENTNSFW_NONCONSENT_CUE'])
+    && empty($GLOBALS['AIAGENTNSFW_REFUSAL_CUE'])
+    && strpos("," . $_toneGag . ",", ',gag,') === false) {
+    $_tonePolicy = aiagentNsfwGetNpcSceneTone($_toneActor, $_toneStatus);
+    if ($_tonePolicy !== null) {
+        foreach (['chatnf_sl', 'chatnf_sl_nr', 'chatnf_sl_climax', 'ext_nsfw_npc_scene', 'chatnf_npc_sl', 'ext_nsfw_npc_orgasm', 'ext_nsfw_orgasm'] as $_toneKey) {
+            if (isset($GLOBALS['PROMPTS'][$_toneKey]['cue'])) {
+                foreach ($GLOBALS['PROMPTS'][$_toneKey]['cue'] as &$_toneCue) {
+                    $_toneCue = aiagentNsfwApplyNpcSceneTone($_toneCue, $_tonePolicy, $GLOBALS['TEMPLATE_DIALOG'] ?? '');
+                }
+                unset($_toneCue);
+            }
+        }
+    }
+}
+
 // Engaged rechat (deferred): mirror the FINAL chatnf_sl cue onto rechat so an engaged NPC talking via
 // the multi-NPC chat path gets the scene cue, not a generic dialogue cue. Runs last = reflects all overrides.
 if (!empty($GLOBALS["AIAGENTNSFW_RECHAT_SEX"]) && isset($GLOBALS["PROMPTS"]["rechat"]["cue"]) && !empty($GLOBALS["PROMPTS"]["chatnf_sl"]["cue"][0])) {

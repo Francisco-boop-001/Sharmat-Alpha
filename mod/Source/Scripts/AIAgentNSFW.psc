@@ -2931,7 +2931,7 @@ Event CommandManager(String npcname,String  command, String parameter)
 			
 			Debug.Trace("[CHIM-NSFW] "+npc.GetDisplayName()+"@ExtCmdSexCommand@"+parameter+" thrId: "+thrId+" thrId2: "+thrId2);
 			Actor[] actorsInvolved = GetOStimThreadParticipantsSafe(thrId2) ; LIVE thread - the SceneEngine does not set ostimThreadId storage, so thrId can be stale/0
-			if actorsInvolved == None || CountValidActors(actorsInvolved) < 1
+			if !actorsInvolved || CountValidActors(actorsInvolved) < 1
 				Debug.Trace("[CHIM-NSFW] ExtCmdSexCommand: No actors for thread " + thrId2)
 				return
 			endif
@@ -3130,7 +3130,7 @@ Event CommandManager(String npcname,String  command, String parameter)
 				Actor[] npcThreadActors = GetOStimThreadParticipantsSafe(npcThreadId)
 				int na = 0
 				bool npcThreadHasPlayer = false
-				while npcThreadActors != None && na < npcThreadActors.Length
+				while npcThreadActors && na < npcThreadActors.Length
 					if npcThreadActors[na] != None && npcThreadActors[na] == playerActor
 						npcThreadHasPlayer = true
 					endif
@@ -3150,7 +3150,7 @@ Event CommandManager(String npcname,String  command, String parameter)
 		while t < threadCount
 			if OThread.IsRunning(t)
 				Actor[] actors = GetOStimThreadParticipantsSafe(t)
-				if actors == None || CountValidActors(actors) < 1
+				if !actors || CountValidActors(actors) < 1
 					Debug.Trace("[CHIM-NSFW] ExtCmdStopScene: No actors for running thread " + t)
 				else
 				int a = 0
@@ -3292,7 +3292,7 @@ Event OStimStart(string eventName, string strArg, float numArg, Form sender)
 	Actor[] Actors = GetOStimThreadParticipantsSafe(threadID)
 	string SceneID = OThread.GetScene(threadID)
 
-	if Actors == None || CountValidActors(Actors) < 1
+	if !Actors || CountValidActors(Actors) < 1
 		Debug.Trace("[CHIM-NSFW] OStimStart: No valid actors for ThreadID=" + threadID + ", SceneID=" + SceneID)
 		return
 	endif
@@ -3356,7 +3356,7 @@ Event OStimStart(string eventName, string strArg, float numArg, Form sender)
 EndEvent
 
 int Function FindActorIndexInList(Actor[] actors, Actor target)
-	if actors == None || target == None
+	if !actors || target == None
 		return -1
 	endif
 
@@ -3372,7 +3372,7 @@ int Function FindActorIndexInList(Actor[] actors, Actor target)
 EndFunction
 
 int Function CountValidActors(Actor[] participants)
-	if participants == None
+	if !participants
 		return 0
 	endif
 
@@ -3389,22 +3389,17 @@ int Function CountValidActors(Actor[] participants)
 EndFunction
 
 Actor[] Function GetOStimThreadParticipantsSafe(int threadID)
+	; Keep OThread slot indices: OMetadata actor/target indices refer to these slots.
+	; Always return an array, including when a thread has already ended.
 	Actor[] participants = new Actor[6]
-	int count = 0
+	if threadID < 0
+		return participants
+	endif
 	int index = 0
-	while index < 6
-		Actor participant = OThread.GetActor(threadID, index)
-		if participant != None
-			participants[count] = participant
-			count += 1
-		endif
+	while index < participants.Length
+		participants[index] = OThread.GetActor(threadID, index)
 		index += 1
 	endwhile
-
-	if count < 1
-		return None
-	endif
-
 	return participants
 EndFunction
 
@@ -3443,7 +3438,7 @@ string Function BuildNpcActorsJson(Actor[] participants)
 EndFunction
 
 Function StashNpcSceneActors(int threadID, Actor[] participants)
-	if participants == None || threadID < 0
+	if !participants || threadID < 0
 		return
 	endif
 	int names = JArray.Object()
@@ -3498,13 +3493,10 @@ string Function ResolveOStimOrgasmPartnerName(Actor orgasmer, int threadID, stri
 		return ""
 	endif
 
-	Actor[] actors = None
-	if threadID >= 0
-		actors = GetOStimThreadParticipantsSafe(threadID)
-	endif
+	Actor[] actors = GetOStimThreadParticipantsSafe(threadID)
 
 	int orgasmerIndex = FindActorIndexInList(actors, orgasmer)
-	if sceneID != "" && orgasmerIndex >= 0 && actors != None
+	if sceneID != "" && orgasmerIndex >= 0 && actors
 		; PENETRATIVE-PRIORITY (no FMR dependency): the orgasm partner is whoever the orgasmer is actually penetrating
 		; or being penetrated by - NOT whatever secondary act (handjob/footjob) happens to be listed first. In a 3-way
 		; this is what credited the scene-starter instead of the real partner. Search the
@@ -3570,7 +3562,7 @@ string Function ResolveOStimOrgasmPartnerName(Actor orgasmer, int threadID, stri
 		endif
 	endif
 
-	if actors != None
+	if actors
 		int i = 0
 		while i < actors.Length
 			if actors[i] != None && actors[i] != orgasmer
@@ -3657,7 +3649,7 @@ Event OstimOrgasm(string eventName, string strArg, float numArg, Form sender)
 		; Find orgasmer's position and a partner; also detect whether the PLAYER is in this thread so an NPC-to-NPC
 		; climax is not misrouted through the player consent/refusal handler (the is_npc_scene misclassification bug).
 		int i = 0
-		if actors != None
+		if actors
 			while (i < actors.Length)
 				if (actors[i] != None && actors[i] == orgasmer)
 					orgasmerIndex = i
@@ -3739,7 +3731,7 @@ Event OStimSceneChanged(string EventName, string SceneID, float NumArg, Form Sen
 
 	Actor[] participants = GetOStimThreadParticipantsSafe(threadId)
 	String actorList = "";
-	if (participants != none)
+	if (participants)
 		int i = 0
 		while i < participants.Length
 			Actor participant = participants[i]
@@ -3814,19 +3806,19 @@ Event OStimEnd(string EventName, string Json, float NumArg, Form Sender)
 	; the following code only works with API version 7.3.1 or higher
 	Debug.Trace("[CHIM-NSFW] OStimEnd: "+EventName+","+Json+","+numArg+","+sender.GetName())
 	int threadID = NumArg as int
-	Actor[] Actors = None
+	Actor[] Actors
 	string SceneID = ""
 	if Json != ""
 		Actors = OJSON.GetActors(Json)
 		SceneID = OJSON.GetScene(Json)
 	endif
-	if Actors == None || CountValidActors(Actors) < 1
+	if !Actors || CountValidActors(Actors) < 1
 		Actors = GetOStimThreadParticipantsSafe(threadID)
 	endif
 	if SceneID == ""
 		SceneID = OThread.GetScene(threadID)
 	endif
-	if Actors == None || CountValidActors(Actors) < 1
+	if !Actors || CountValidActors(Actors) < 1
 		Debug.Trace("[CHIM-NSFW] OStimEnd: No valid actors for ThreadID=" + threadID + ", SceneID=" + SceneID)
 		return
 	endif
@@ -3882,7 +3874,7 @@ Event OStimEnd(string EventName, string Json, float NumArg, Form Sender)
 EndEvent
 
 Actor Function PickNpcSceneSpeaker(Actor[] participants)
-	if participants == None || participants.Length < 1
+	if !participants || participants.Length < 1
 		return None
 	endif
 
@@ -3948,20 +3940,20 @@ Event OStimThreadStart(string EventName, string Json, float ThreadID, Form Sende
 	; NPC-only, but SHARMAT arousal authority applies to every NPC participant here.
 
 	int threadIDInt = ThreadID as int
-	Actor[] Actors = None
+	Actor[] Actors
 	string SceneID = ""
 	if Json != ""
 		Actors = OJSON.GetActors(Json)
 		SceneID = OJSON.GetScene(Json)
 	endif
-	if Actors == None || CountValidActors(Actors) < 1
+	if !Actors || CountValidActors(Actors) < 1
 		Actors = GetOStimThreadParticipantsSafe(threadIDInt)
 	endif
 	if SceneID == ""
 		SceneID = OThread.GetScene(threadIDInt)
 	endif
 	Debug.Trace("[CHIM-NSFW] OStimThreadStart: "+EventName+","+Json+","+ThreadID+","+sender.GetName())
-	if Actors == None || CountValidActors(Actors) < 1
+	if !Actors || CountValidActors(Actors) < 1
 		Debug.Trace("[CHIM-NSFW] OStimThreadStart: No actors from JSON or OThread fallback")
 		return
 	endif
@@ -4017,7 +4009,7 @@ Event OStimThreadSceneChanged(string EventName, string SceneID, float ThreadID, 
 
 	Debug.Trace("[CHIM-NSFW] OStimThreadSceneChanged: " + EventName + ", SceneID: " + resolvedSceneID + ", ThreadID: " + npcSceneThreadInt)
 
-	if participants == None || CountValidActors(participants) < 2
+	if !participants || CountValidActors(participants) < 2
 		Debug.Trace("[CHIM-NSFW] OStimThreadSceneChanged: No valid participants")
 		return
 	endif
@@ -4068,20 +4060,20 @@ Event OStimThreadEnd(string EventName, string Json, float ThreadID, Form Sender)
 	endif
 	; the following code only works with API version 7.3.1 or higher
 	int threadEndIDInt = ThreadID as int
-	Actor[] Actors = None
+	Actor[] Actors
 	string SceneID = ""
 	if Json != ""
 		Actors = OJSON.GetActors(Json)
 		SceneID = OJSON.GetScene(Json)
 	endif
-	if Actors == None || CountValidActors(Actors) < 1
+	if !Actors || CountValidActors(Actors) < 1
 		Actors = GetOStimThreadParticipantsSafe(threadEndIDInt)
 	endif
 	if SceneID == ""
 		SceneID = OThread.GetScene(threadEndIDInt)
 	endif
 	Debug.Trace("[CHIM-NSFW] OStimThreadEnd: "+EventName+","+Json+","+ThreadID+","+sender.GetName())
-	if Actors == None || CountValidActors(Actors) < 1
+	if !Actors || CountValidActors(Actors) < 1
 		; Live resolution failed (empty end JSON / thread already torn down). Fall back to the stashed roster so
 		; the scene still tears down cleanly - otherwise NPC scene state lingers and bleeds into later dialogue.
 		string stashScoring = BuildScoringFromStash(threadEndIDInt)
@@ -4177,7 +4169,7 @@ Event OStimSubthreadStart(string EventName, string SceneID, float SubthreadID, F
 
 	; Get actors in this subthread
 	Actor[] participants = GetOStimThreadParticipantsSafe(threadId)
-	if participants == None || CountValidActors(participants) < 2
+	if !participants || CountValidActors(participants) < 2
 		Debug.Trace("[CHIM-NSFW] OStimSubthreadStart: No valid participants found")
 		return
 	endif
@@ -4239,7 +4231,7 @@ Event OStimSubthreadEnd(string EventName, string SceneID, float SubthreadID, For
 
 	; Get actors that were in this subthread
 	Actor[] participants = GetOStimThreadParticipantsSafe(threadId)
-	if participants == None
+	if !participants || CountValidActors(participants) < 1
 		; Fall back to the stashed roster so the scene still tears down cleanly.
 		string stashScoring = BuildScoringFromStash(threadId)
 		if stashScoring != ""

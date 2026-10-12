@@ -1220,6 +1220,11 @@ if ($isNpcSceneGateDisabled && !$isPillowTalkMode) {
     $GLOBALS["HERIKA_PERSONALITY"] .= "\n<npc_gate_disabled>\n{$npcGatePrompt}\n</npc_gate_disabled>";
     $GLOBALS["AIAGENTNSFW_NPC_GATE_DISABLED_CUE"] = "<npc_gate_disabled>\n{$npcGatePrompt}\n</npc_gate_disabled>";
 
+    $npcTone = aiagentNsfwGetNpcSceneTone($actorName, $intimacyStatus);
+    if ($npcTone !== null) {
+        $GLOBALS["HERIKA_PERSONALITY"] .= "\n<npc_relationship_context>\n" . $npcTone['context'] . "\n</npc_relationship_context>";
+    }
+
     $intimacyStatus["npc_affinity_gate_disabled"] = true;
     $intimacyStatus["accepted_sex"] = true;
     $intimacyStatus["show_normal_kinks"] = true;

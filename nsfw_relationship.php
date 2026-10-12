@@ -160,6 +160,10 @@ class NsfwRelationship {
             }
         }
 
+        if ($isNpcPromptContext) {
+            return self::getNpcSceneTierPrompt($tier, $affinity, $isProstitute, $partnerName, $npcName ?? '');
+        }
+
         // REGULAR: Not married, or partner info not available - use standard prompts
         $prompts = self::loadPromptSettings();
         $promptKey = $isProstitute ? "tier_prost_{$tier}" : "tier_{$tier}";

@@ -1014,7 +1014,8 @@ function aiagentNsfwOrgasmLocationPhrase($actionType, $isFemalePlayer) {
         || strpos($a, 'facial') !== false || strpos($a, 'lickingpenis') !== false || strpos($a, 'deepthroat') !== false) { return "on your face and in your mouth"; }
     if (strpos($a, 'foot') !== false) { return "on your feet"; }
     if (strpos($a, 'finger') !== false || strpos($a, 'handjob') !== false || strpos($a, 'hand') !== false) { return "on your hands and fingers"; }
-    return "on your body";
+    // Partner resolution fallbacks and unknown tags do not establish a location.
+    return "";
 }
 
 function aiagentNsfwSubstanceRegex($settingKey, $defaultTerms) {

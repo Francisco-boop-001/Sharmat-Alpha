@@ -13,6 +13,7 @@
  */
 
 require_once(__DIR__ . '/nsfw_relationship.php');
+require_once(__DIR__ . '/npc_scene_tone.php');
 
 if (!function_exists('aiagentNsfwCleanSceneName')) {
     function aiagentNsfwCleanSceneName($name) {
@@ -276,7 +277,9 @@ if (!function_exists('aiagentNsfwResolveSpeakStylePlaceholders')) {
             '#SCENE_ID#',
             '#THREAD_ID#',
         ]));
-        return strtr($prompt, $map);
+        $prompt = strtr($prompt, $map);
+        $policy = aiagentNsfwGetNpcSceneTone($actorName, $intimacyStatus, $extra);
+        return $policy === null ? $prompt : aiagentNsfwApplyNpcSceneTone($prompt, $policy);
     }
 }
 
