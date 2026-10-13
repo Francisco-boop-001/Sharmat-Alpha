@@ -22,7 +22,7 @@ assert.ok(sceneEngine.includes('OStimPickLesbianScene(actors, fallbackFurnitureT
 assert.ok(sceneEngine.includes('OStimPickLesbianScene(desiredOrder, furnitureType)'), 'FF player pair transition must preserve its furniture constraint');
 const ffFallbackGuards = sceneEngine.split('\n').filter(line => /^\s*if .*RosterIsPlayerFemaleFemalePair\(/.test(line));
 assert.equal(ffFallbackGuards.length, 3, 'check OStim start, OStim transition, and SexLab start');
-assert.ok(ffFallbackGuards.every(line => line.includes('!OStimActKeepsInitiatorOrder(sceneAct)')), 'affection, massage, and feeding must not enter the sexual FF fallback');
+assert.ok(ffFallbackGuards.every(line => line.includes('!OStimActAvoidsSexualFallback(sceneAct)')), 'affection, massage, and feeding must not enter the sexual FF fallback');
 assert.ok(sceneEngine.includes('RosterContainsProtectedMinor(actors)'), 'Papyrus scene start must reject protected actors');
 
 const common = read('common.php');

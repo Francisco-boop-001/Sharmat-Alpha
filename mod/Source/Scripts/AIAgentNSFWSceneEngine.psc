@@ -114,10 +114,16 @@ string Function OStimExactSceneForAct(string sceneAct) global
     return ""
 EndFunction
 
-; Chaste/service acts describe who initiated the action, not a sexual DOM/SUB choice. Keep the
-; caller first for those fresh scenes and defer sexual role ordering until an actual sexual act.
-bool Function OStimActKeepsInitiatorOrder(string sceneAct) global
+; Affection and directed service acts must not fall through to unrelated sexual animations.
+; This animation-selection rule is independent of actor-role sorting.
+bool Function OStimActAvoidsSexualFallback(string sceneAct) global
     return sceneAct == "kiss" || sceneAct == "hug" || sceneAct == "holdhands" || sceneAct == "massage" || sceneAct == "bloodfeed" || StringUtil.Find(sceneAct, "frenchkissing") >= 0 || StringUtil.Find(sceneAct, "kissing") >= 0 || StringUtil.Find(sceneAct, "cuddling") >= 0 || StringUtil.Find(sceneAct, "hugging") >= 0 || StringUtil.Find(sceneAct, "holdinghands") >= 0
+EndFunction
+
+; Directed services retain giver/receiver order. Starting a kiss, hug or hand-hold
+; does not itself choose the dominant animation slot.
+bool Function OStimActPreservesServiceRoles(string sceneAct) global
+    return sceneAct == "massage" || sceneAct == "bloodfeed"
 EndFunction
 
 bool Function OStimActIsChasteAffection(string sceneAct) global
@@ -586,7 +592,7 @@ int Function StartOStimScene(Actor[] actors, string sceneAct = "", bool allowRol
     bool npcOnlyThread = actors.Find(Game.GetPlayer()) < 0
     ObjectReference npcFurnRef = forcedFurniture
     string sceneName = forcedScene
-    if sceneName == "" && npcFurnRef == None && npcOnlyThread && !OStimActKeepsInitiatorOrder(sceneAct)
+    if sceneName == "" && npcFurnRef == None && npcOnlyThread && !OStimActAvoidsSexualFallback(sceneAct)
         ObjectReference[] furnCands = OFurniture.FindFurniture(actors.Length, actors[0], 1000.0, 96.0)
         string furnTagCSV = OStimSceneTagForAct(sceneAct)
         int fPass = 0
@@ -635,7 +641,7 @@ int Function StartOStimScene(Actor[] actors, string sceneAct = "", bool allowRol
     if sceneName == "" && !chasteAffection
         sceneName = OStimExactSceneForAct(sceneAct) ; affection acts pin their OARE staple, never a random scene
     endif
-    if sceneName == "" && !OStimActKeepsInitiatorOrder(sceneAct) && RosterIsPlayerFemaleFemalePair(actors)
+    if sceneName == "" && !OStimActAvoidsSexualFallback(sceneAct) && RosterIsPlayerFemaleFemalePair(actors)
         string fallbackFurnitureType = ""
         if npcFurnRef != None
             fallbackFurnitureType = OFurniture.GetFurnitureType(npcFurnRef)
@@ -741,7 +747,7 @@ int Function TransitionOStimSceneToAct(int threadID, string sceneAct, string req
     if sceneName == "" && !chasteAffection && !hasFurniture && desiredOrder.Length == 2
         sceneName = OStimExactSceneForAct(sceneAct) ; e.g. shift a hug to hand-holding (tagged only "oare")
     endif
-    if sceneName == "" && !OStimActKeepsInitiatorOrder(sceneAct) && RosterIsPlayerFemaleFemalePair(desiredOrder)
+    if sceneName == "" && !OStimActAvoidsSexualFallback(sceneAct) && RosterIsPlayerFemaleFemalePair(desiredOrder)
         sceneName = OStimPickLesbianScene(desiredOrder, furnitureType)
         if sceneName != ""
             Debug.Trace("[CHIM-NSFW SceneEngine] OStim FF player pair shift: using lesbian scene " + sceneName)
@@ -826,12 +832,12 @@ Actor[] Function NormalizeSexLabActors(SexLabFramework slf, Actor[] actors) glob
     return actors
 EndFunction
 
-; One authority for OStim actor-slot policy. Chaste/service scenes retain caller order. Sexual
-; scenes are sorted by OStim itself so anatomy, Always Dominant/Submissive, and the optional fresh-
-; scene role picker all retain their framework-defined behavior. Existing-thread transitions pass
+; One authority for OStim actor-slot policy. Affection and sexual scenes use OStim sorting;
+; directed services retain giver/receiver order. Anatomy, Always Dominant/Submissive, and the
+; optional fresh-scene role picker retain framework behavior. Existing-thread transitions pass
 ; allowRoleSelect=false: they must never open a second role prompt while a scene is already active.
 Actor[] Function ResolveOStimActorOrder(Actor[] actors, string sceneAct = "", bool allowRoleSelect = false) global
-    if actors.Length < 2 || OStimActKeepsInitiatorOrder(sceneAct)
+    if actors.Length < 2 || OStimActPreservesServiceRoles(sceneAct)
         return actors
     endif
 
@@ -845,14 +851,14 @@ Actor[] Function ResolveOStimActorOrder(Actor[] actors, string sceneAct = "", bo
     endif
 
     if sorted.Length != actors.Length
-        Debug.Trace("[CHIM-NSFW SceneEngine] OStim role sort failed: returned " + sorted.Length + " of " + actors.Length + " actors; aborting sexual scene")
+        Debug.Trace("[CHIM-NSFW SceneEngine] OStim role sort failed: returned " + sorted.Length + " of " + actors.Length + " actors; aborting scene")
         return invalid
     endif
 
     int i = 0
     while i < sorted.Length
         if sorted[i] == None || actors.Find(sorted[i]) < 0 || sorted.Find(sorted[i]) != i
-            Debug.Trace("[CHIM-NSFW SceneEngine] OStim role sort returned an invalid roster; aborting sexual scene")
+            Debug.Trace("[CHIM-NSFW SceneEngine] OStim role sort returned an invalid roster; aborting scene")
             return invalid
         endif
         i += 1
@@ -1013,7 +1019,7 @@ bool Function StartSexLabScene(SexLabFramework slf, Actor[] actors, string scene
             endif
         endif
     endif
-    if taggedCount < 1 && !OStimActKeepsInitiatorOrder(sceneAct) && RosterIsPlayerFemaleFemalePair(actors)
+    if taggedCount < 1 && !OStimActAvoidsSexualFallback(sceneAct) && RosterIsPlayerFemaleFemalePair(actors)
         tagged = slf.GetAnimationsByDefaultTags(males, females, false, false, true, "Lesbian,Cunnilingus", "", false)
         if tagged
             taggedCount = tagged.Length
