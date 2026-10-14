@@ -2728,7 +2728,7 @@ if ($shouldInjectEngagedContent) {
             error_log("[AIAGENTNSFW] WARNING: NPC has sex_speech_style='{$extended_data["sex_speech_style"]}' but content is empty!");
         }
     } else {
-        error_log("[AIAGENTNSFW] DEBUG: NPC {$GLOBALS["HERIKA_NAME"]} has no configured sex_speech_style - using defaults");
+        error_log("[AIAGENTNSFW] DEBUG: NPC {$GLOBALS["HERIKA_NAME"]} scene style not applied on this route (tier, phase, role, or configuration gate)");
     }
 
     // HARD STATE MACHINE (user directive 2026-06-29): in a PLAYER decision phase (tier 3, undecided, not refusing),

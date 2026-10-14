@@ -142,21 +142,33 @@ if (!function_exists('aiagentNsfwBuildScenePlaceholderMap')) {
         }
 
         if ($isNpcScene) {
-            $primaryPartner = aiagentNsfwFirstNonEmpty([
+            // Scene-wide primary slots and stale extra arguments can name the speaker.
+            // Resolve a counterpart from this actor's roster, never a self relationship.
+            $normalizePartner = static fn($name) => strtolower(str_replace('_', ' ', trim((string)$name)));
+            $resolveNpcPartner = static function ($candidates) use ($actorName, $playerName, $playerPartners, $normalizePartner) {
+                foreach ($candidates as $candidate) {
+                    $candidate = aiagentNsfwCleanSceneName($candidate);
+                    $key = $normalizePartner($candidate);
+                    if ($key === '' || $key === $normalizePartner($actorName) || $key === $normalizePartner($playerName)) continue;
+                    if (function_exists('nsfwIsNarratorName') && nsfwIsNarratorName($candidate)) continue;
+                    foreach ($playerPartners as $member) {
+                        if ($normalizePartner($member) === $key) return $member;
+                    }
+                    // Before an invite has a complete roster, an explicit counterpart is still useful.
+                    if (!$playerPartners) return $candidate;
+                }
+                return $playerPartners[0] ?? 'the other NPC';
+            };
+            $npcPartner = $resolveNpcPartner([
+                $extra['npc_partner'] ?? null, $extra['primary_partner'] ?? null,
+                $intimacyStatus['npc_scene_partner'] ?? null, $intimacyStatus['npc_partner'] ?? null,
+            ]);
+            $primaryPartner = $resolveNpcPartner([
                 $extra['primary_partner'] ?? null,
                 $intimacyStatus['current_primary_partner'] ?? null,
                 $intimacyStatus['sex_partner'] ?? null,
                 $npcPartner,
             ]);
-            // NPC-SCENE GUARD (fix 2026-07-01k): the player can NEVER be the partner on this route. Stale
-            // player-scene remnants in partner fields made concurrent-scene NPCs talk as if in the PLAYER's
-            // scene ("scene bleed"). Re-resolve to the first non-player co-actor.
-            if ($primaryPartner !== '' && strcasecmp($primaryPartner, $playerName) === 0) {
-                $primaryPartner = $playerPartners[0] ?? 'the other NPC';
-            }
-            if ($npcPartner !== '' && strcasecmp($npcPartner, $playerName) === 0) {
-                $npcPartner = $playerPartners[0] ?? 'the other NPC';
-            }
         } else {
             // In player scenes, current_primary_partner is the player-focused NPC
             // from OStim ordering, not the speaking NPC's partner. Speech styles

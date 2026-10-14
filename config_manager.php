@@ -734,6 +734,7 @@ SQL;
                 'NSFW_ALLOW_MIDSCENE_STEERING' => true,  // Model may change position/act mid-scene (SexAction)
                 'NSFW_AFFECTION_COOLDOWN_ENABLED' => true,  // Throttle repeated HoldHands/Hug/Kiss so the model can't spam affection (~60s per NPC)
                 'NPC_SCENE_LLM_ENABLED' => true,  // NPC-to-NPC live model dialogue enabled by default
+                'NPC_SCENE_RELATIONSHIP_STYLE_CHECK' => true,
                 'NPC_SCENE_CONTEXT_THROTTLE_SECONDS' => 6,
                 'NPC_SCENE_GLOBAL_COOLDOWN_SECONDS' => 25,
                 'NPC_SCENE_THREAD_COOLDOWN_SECONDS' => 60,
@@ -1183,6 +1184,7 @@ SQL;
                 'NSFW_ALLOW_MIDSCENE_STEERING' => isset($_POST['NSFW_ALLOW_MIDSCENE_STEERING']) ? filter_var($_POST['NSFW_ALLOW_MIDSCENE_STEERING'], FILTER_VALIDATE_BOOLEAN) : true,
                 'NSFW_AFFECTION_COOLDOWN_ENABLED' => isset($_POST['NSFW_AFFECTION_COOLDOWN_ENABLED']) ? filter_var($_POST['NSFW_AFFECTION_COOLDOWN_ENABLED'], FILTER_VALIDATE_BOOLEAN) : true,
                 'NPC_SCENE_LLM_ENABLED' => isset($_POST['NPC_SCENE_LLM_ENABLED']) ? filter_var($_POST['NPC_SCENE_LLM_ENABLED'], FILTER_VALIDATE_BOOLEAN) : false,
+                'NPC_SCENE_RELATIONSHIP_STYLE_CHECK' => isset($_POST['NPC_SCENE_RELATIONSHIP_STYLE_CHECK']) ? filter_var($_POST['NPC_SCENE_RELATIONSHIP_STYLE_CHECK'], FILTER_VALIDATE_BOOLEAN) : true,
                 'GROUP_SCENE_PARTICIPANT_DIALOGUE' => isset($_POST['GROUP_SCENE_PARTICIPANT_DIALOGUE']) ? filter_var($_POST['GROUP_SCENE_PARTICIPANT_DIALOGUE'], FILTER_VALIDATE_BOOLEAN) : true,
                 'NPC_SCENE_CONTEXT_THROTTLE_SECONDS' => isset($_POST['NPC_SCENE_CONTEXT_THROTTLE_SECONDS']) ? max(1, intval($_POST['NPC_SCENE_CONTEXT_THROTTLE_SECONDS'])) : 6,
                 'NPC_SCENE_GLOBAL_COOLDOWN_SECONDS' => isset($_POST['NPC_SCENE_GLOBAL_COOLDOWN_SECONDS']) ? max(1, intval($_POST['NPC_SCENE_GLOBAL_COOLDOWN_SECONDS'])) : 25,
@@ -1432,6 +1434,7 @@ SQL;
                     'success' => true,
                     'data' => [
                         'speak_style' => 'auto',
+                        'npc_scene_relationship_style_check' => null,
                         'profanity_level' => '2',
                         'kinks' => [],
                         'secret_kinks' => [],
@@ -1456,6 +1459,7 @@ SQL;
 
             $nsfwSettings = [
                 'speak_style' => $extendedData['sex_speech_style'] ?? 'auto',
+                'npc_scene_relationship_style_check' => isset($extendedData['npc_scene_relationship_style_check']) ? filter_var($extendedData['npc_scene_relationship_style_check'], FILTER_VALIDATE_BOOLEAN) : null,
                 'profanity_level' => $profLevel,
                 'kinks' => $extendedData['nsfw_kinks'] ?? [],
                 'secret_kinks' => $extendedData['nsfw_secret_kinks'] ?? [],
@@ -1554,6 +1558,13 @@ SQL;
 
             // Update NSFW settings - using Tyler's field names for compatibility
             $extendedData['sex_speech_style'] = $_POST['speak_style'] ?? 'auto';
+            if (isset($_POST['npc_scene_relationship_style_check'])) {
+                if ($_POST['npc_scene_relationship_style_check'] === 'inherit') {
+                    unset($extendedData['npc_scene_relationship_style_check']);
+                } else {
+                    $extendedData['npc_scene_relationship_style_check'] = filter_var($_POST['npc_scene_relationship_style_check'], FILTER_VALIDATE_BOOLEAN);
+                }
+            }
             $extendedData['nsfw_profanity_level'] = $_POST['profanity_level'] ?? '2';
             $extendedData['nsfw_kinks'] = isset($_POST['kinks']) ? json_decode($_POST['kinks'], true) : [];
             $extendedData['nsfw_secret_kinks'] = isset($_POST['secret_kinks']) ? json_decode($_POST['secret_kinks'], true) : [];
@@ -1671,6 +1682,7 @@ SQL;
 
             // Remove NSFW settings - Tyler's field names
             unset($extendedData['sex_speech_style']);
+            unset($extendedData['npc_scene_relationship_style_check']);
             unset($extendedData['nsfw_profanity_level']);
             unset($extendedData['nsfw_kinks']);
             unset($extendedData['nsfw_secret_kinks']);
@@ -7427,6 +7439,34 @@ PROMPT;
                 .catch(e => { console.error('auto-generate save failed', e); });
         }
 
+        // One global default, optional NPC override, and an automatic profile-role bypass.
+        let npcSceneSavedGlobalStyleCheck = true;
+        let npcSceneStyleOverride = null;
+        function syncNpcStyleGlobalDefault() {
+            const check = document.getElementById('npcSceneRelationshipStyleCheck');
+            const inherit = document.getElementById('npcSceneStyleUseGlobal');
+            const note = document.getElementById('npcSceneStyleStatus');
+            if (!check || !inherit) return;
+            const automatic = document.getElementById('isSlut')?.checked === true;
+            inherit.checked = npcSceneStyleOverride === null;
+            inherit.disabled = automatic;
+            check.checked = !automatic && (npcSceneStyleOverride ?? npcSceneSavedGlobalStyleCheck);
+            check.disabled = automatic || inherit.checked;
+            if (note) note.textContent = automatic
+                ? 'Automatically off while Slutty is checked, including profiles generated by the model.'
+                : (inherit.checked ? 'Following the saved global setting.' : 'Override for this NPC only.');
+        }
+        document.addEventListener('change', function(event) {
+            if (event.target.id === 'npcSceneStyleUseGlobal') {
+                npcSceneStyleOverride = event.target.checked ? null : document.getElementById('npcSceneRelationshipStyleCheck').checked;
+            } else if (event.target.id === 'npcSceneRelationshipStyleCheck') {
+                npcSceneStyleOverride = event.target.checked;
+            } else if (!['isSlut', 'isSlave', 'isProstitute'].includes(event.target.id)) {
+                return;
+            }
+            syncNpcStyleGlobalDefault();
+        });
+
         // Load Settings
         function loadSettings() {
             fetch('<?php echo $_SERVER['PHP_SELF']; ?>?action=loadSettings')
@@ -7543,6 +7583,9 @@ PROMPT;
                         if (document.getElementById('nsfwAllowMidsceneSteering')) elSet('nsfwAllowMidsceneSteering', 'checked', checkedDefault(data.data.NSFW_ALLOW_MIDSCENE_STEERING, true));  // Default true
                         if (document.getElementById('nsfwAffectionCooldownEnabled')) elSet('nsfwAffectionCooldownEnabled', 'checked', checkedDefault(data.data.NSFW_AFFECTION_COOLDOWN_ENABLED, true));  // Default true
                         elSet('npcSceneLlmEnabled', 'checked', data.data.NPC_SCENE_LLM_ENABLED === true || data.data.NPC_SCENE_LLM_ENABLED === '1');
+                        npcSceneSavedGlobalStyleCheck = ![false, 'false', 0, '0'].includes(data.data.NPC_SCENE_RELATIONSHIP_STYLE_CHECK);
+                        elSet('npcSceneGlobalStyleCheck', 'checked', npcSceneSavedGlobalStyleCheck);
+                        syncNpcStyleGlobalDefault();
                         elSet('groupSceneParticipantDialogue', 'checked', data.data.GROUP_SCENE_PARTICIPANT_DIALOGUE !== false);  // Default true
                         const npcSceneContextThrottle = data.data.NPC_SCENE_CONTEXT_THROTTLE_SECONDS !== undefined ? data.data.NPC_SCENE_CONTEXT_THROTTLE_SECONDS : 6;
                         elSet('npcSceneContextThrottle', 'value', npcSceneContextThrottle);
@@ -7897,6 +7940,7 @@ PROMPT;
             if (document.getElementById('nsfwAllowMidsceneSteering')) fdSet('NSFW_ALLOW_MIDSCENE_STEERING', 'nsfwAllowMidsceneSteering', 'checked');
             if (document.getElementById('nsfwAffectionCooldownEnabled')) fdSet('NSFW_AFFECTION_COOLDOWN_ENABLED', 'nsfwAffectionCooldownEnabled', 'checked');
             fdSet('NPC_SCENE_LLM_ENABLED', 'npcSceneLlmEnabled', 'checked');
+            fdSet('NPC_SCENE_RELATIONSHIP_STYLE_CHECK', 'npcSceneGlobalStyleCheck', 'checked');
             fdSet('GROUP_SCENE_PARTICIPANT_DIALOGUE', 'groupSceneParticipantDialogue', 'checked');
             fdSet('NPC_SCENE_CONTEXT_THROTTLE_SECONDS', 'npcSceneContextThrottle', 'value');
             fdSet('NPC_SCENE_GLOBAL_COOLDOWN_SECONDS', 'npcSceneGlobalCooldown', 'value');
@@ -8026,6 +8070,8 @@ PROMPT;
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    npcSceneSavedGlobalStyleCheck = formData.get('NPC_SCENE_RELATIONSHIP_STYLE_CHECK') === 'true';
+                    syncNpcStyleGlobalDefault();
                     markNsfwChangesSaved('settings', settingsSaveGeneration);
                     showAlert(nsfwSaveAlertId('settings', 'success', alertContext), data.message, 'success');
                 } else {
@@ -8520,7 +8566,7 @@ PROMPT;
         // Track manual edits - when user changes any field, switch source to 'manual'
         const manualEditFields = [
             'sexPrompt', 'speakStyleSelect', 'profanityLevel',
-            'kinksInput', 'secretKinksInput', 'isProstitute', 'isSlave', 'isSlut',
+            'kinksInput', 'secretKinksInput', 'isProstitute', 'isSlave', 'isSlut', 'npcSceneRelationshipStyleCheck', 'npcSceneStyleUseGlobal',
             'spousalStatus', 'spouseNamesInput', 'sexualOrientation', 'relationshipPreference'
         ];
         manualEditFields.forEach(fieldId => {
@@ -8933,6 +8979,8 @@ PROMPT;
         if (slaveEl) slaveEl.checked = data.is_slave || false;
         const slutEl = document.getElementById('isSlut');
         if (slutEl) slutEl.checked = data.is_slut || false;
+        npcSceneStyleOverride = data.npc_scene_relationship_style_check ?? null;
+        syncNpcStyleGlobalDefault();
         const fictionFrameEl = document.getElementById('slaveFictionFrame');
         if (fictionFrameEl) fictionFrameEl.checked = data.slave_fiction_frame !== false; // default checked
         if (spousalStatusEl) spousalStatusEl.value = data.spousal_status || 'single';
@@ -9024,6 +9072,8 @@ PROMPT;
         if (isSlave) isSlave.checked = false;
         const isSlutClear = document.getElementById('isSlut');
         if (isSlutClear) isSlutClear.checked = false;
+        npcSceneStyleOverride = null;
+        syncNpcStyleGlobalDefault();
 
         // Clear relationship fields
         const spousalStatus = document.getElementById('spousalStatus');
@@ -9569,6 +9619,7 @@ PROMPT;
         formData.append('is_prostitute', document.getElementById('isProstitute').checked);
         formData.append('is_slave', document.getElementById('isSlave').checked);
         formData.append('is_slut', document.getElementById('isSlut') ? document.getElementById('isSlut').checked : false);
+        formData.append('npc_scene_relationship_style_check', npcSceneStyleOverride === null ? 'inherit' : npcSceneStyleOverride);
         // slave_fiction_frame removed - fiction frame is now a GLOBAL toggle on the Prompts tab
         formData.append('spousal_status', document.getElementById('spousalStatus').value);
         formData.append('spouse_names', document.getElementById('spouseNamesInput').value);
@@ -9799,6 +9850,7 @@ PROMPT;
                 // Promiscuous mark from generation (mutually exclusive - slave/prostitute win)
                 const genSlutEl = document.getElementById('isSlut');
                 if (genSlutEl) genSlutEl.checked = !!(result.is_slut && !result.is_slave && !result.is_prostitute);
+                syncNpcStyleGlobalDefault();
 
                 // Check if prostitute and set type
                 if (result.is_prostitute) {

@@ -3,12 +3,12 @@
 $case = $argv[1] ?? 'low';
 $root = $argv[2] ?? dirname(__DIR__);
 require_once dirname(__DIR__) . '/npc_scene_tone.php';
-function _getNsfwSetting($key,$default=null) { return $default; }
+function _getNsfwSetting($key,$default=null) { return $key==='NPC_SCENE_RELATIONSHIP_STYLE_CHECK' ? $GLOBALS['case']!=='global_off' : $default; }
 function getGlobalPrompt($key) { return in_array($key,['dd_awareness','dd_gag_muffle'],true) ? '1' : ''; }
 function getIntimacyForActor($actor) { return $GLOBALS['fixtureStatus']; }
 function getDrunkStageForActor($actor) { return $GLOBALS['case'] === 'drunk' ? 3 : 0; }
 class NsfwNpcData {
-    static function get($actor) { return ['relationship_preference'=>'monogamous', 'sex_speech_style'=>'custom', 'aiagent_nsfw_devices'=>$GLOBALS['case']==='gag' ? 'gag' : '']; }
+    static function get($actor) { return ['relationship_preference'=>'monogamous', 'sex_speech_style'=>'custom', 'npc_scene_relationship_style_check'=>$GLOBALS['case']==='style_off' ? false : null, 'is_slut'=>$GLOBALS['case']==='generated_role', 'aiagent_nsfw_devices'=>$GLOBALS['case']==='gag' ? 'gag' : '']; }
 }
 class NsfwData { static function getSpeakStyle($name) { return ['climax_prompt'=>'STYLE_SENTINEL']; } }
 class RelationshipManager {
@@ -53,7 +53,11 @@ if (in_array($case,['low','drunk'],true)) {
     $check(!str_contains($GLOBALS['PROMPTS']['ext_nsfw_npc_orgasm']['cue'][0],'DEFAULT_ORGASM_SENTINEL'),'climax cue bypassed tone policy');
 }
 if ($case==='drunk') { $check(str_contains($cue,'You are intoxicated'),'intoxication override lost'); }
-if (in_array($case,['high','player'],true)) { $check(str_contains($chat,'STYLE_SENTINEL'),'eligible/player style changed'); }
+if (in_array($case,['high','player','style_off','global_off','generated_role'],true)) { $check(str_contains($chat,'STYLE_SENTINEL'),'eligible/player/disabled-check style changed'); }
+if (in_array($case,['style_off','global_off','generated_role'],true)) {
+    $check(str_contains($cue,'STYLE_SENTINEL') && str_contains($cue,'Partner B'),'NPC style override lost on final assembly');
+    $check(str_contains($cue,'affinity 8'),'disabling style check must retain actual relationship context');
+}
 if ($case==='pillow') { $check(str_contains($cue,'PILLOW_SENTINEL'),'post-scene precedence lost'); }
 if ($case==='refusal') { $check(str_contains($chat,'REFUSAL_SENTINEL'),'refusal precedence lost'); }
 if ($case==='gag') { $check(!str_contains($chat,'npc_relationship_context'),'gag muffle overwritten by tone fallback'); }

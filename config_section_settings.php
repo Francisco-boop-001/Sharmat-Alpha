@@ -217,14 +217,14 @@
             </div>
 
             <!-- ============================================================ -->
-            <!-- CATEGORY: NPC-TO-NPC SCENE CADENCE -->
+            <!-- CATEGORY: NPC-TO-NPC DIALOG AND TIMING -->
             <!-- ============================================================ -->
             <div class="collapsible-header" onclick="toggleNestedSection('npcSceneRuntime')" style="background: linear-gradient(135deg, #2A2540 0%, #1C1A24 100%); padding: 15px 20px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid #3A3545; margin-top: 14px; transition: all 0.3s ease;">
-                <h3 class="section-header" style="margin: 0; display: flex; align-items: center; gap: 10px;"><img src="images/ChimNSFWsoulgem.png" style="width: 24px; height: 24px;"> NPC-to-NPC Scene Cadence</h3>
+                <h3 class="section-header" style="margin: 0; display: flex; align-items: center; gap: 10px;"><img src="images/ChimNSFWsoulgem.png" style="width: 24px; height: 24px;"> NPC-to-NPC Dialog and Timing</h3>
                 <div style="display: flex; gap: 8px; align-items: center;"><span class="section-save-btn" onclick="event.stopPropagation(); saveSettings();">Save</span><span id="npcSceneRuntimeToggle" class="section-toggle-btn">Open</span></div>
             </div>
             <div id="npcSceneRuntimeContent" class="collapsible-content" style="display: none; padding: 20px; background: #1C1A24; border: 1px solid #3A3545; border-top: none; border-radius: 0 0 8px 8px;">
-                <p class="legend" style="margin-bottom: 15px;">Background NPC-only scene routing, call-and-response pacing, and distance priority. Player scenes use the player-scene settings below.</p>
+                <p class="legend" style="margin-bottom: 15px;">NPC-only dialogue, Speak Style relationship checks, call-and-response pacing, and distance priority. Player scenes use the player-scene settings below.</p>
 
                 <div class="settings-checkbox-group">
                     <label for="nsfwAllowNpcJoinScenes">
@@ -240,6 +240,14 @@
                         <span>Enable Live NPC-to-NPC Scene Dialogue</span>
                     </label>
                     <p class="legend">When enabled, NPC-only OStim/SexLab scene updates may trigger model dialogue for rotating participants. When disabled, SHARMAT only records context/state for NPC scenes and suppresses live NPC scene chatter.</p>
+                </div>
+
+                <div class="settings-checkbox-group">
+                    <label for="npcSceneGlobalStyleCheck">
+                        <input type="checkbox" id="npcSceneGlobalStyleCheck" name="NPC_SCENE_RELATIONSHIP_STYLE_CHECK" checked>
+                        <span>Apply relationship checks to Speak Styles</span>
+                    </label>
+                    <p class="legend">Default for all NPCs. On: low partner affinity or an existing monogamous bond can replace the selected Speak Style with relationship-based dialogue. Off: retain the selected Speak Style. Individual NPC settings can override this default. NPCs marked Slutty automatically bypass this check, including generated profiles. Dialogue only; scene-start rules are unchanged.</p>
                 </div>
 
                 <div class="settings-slider-group">

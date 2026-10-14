@@ -1,6 +1,6 @@
 # SHARMAT Alpha — Skyrim mod download
 
-**[Download the complete SHARMAT 3.1.9.6 ZIP](https://github.com/Wondernuttz/Sharmat-Alpha/releases/download/v3.1.9.6/SHARMAT-3.1.9.6.zip)**
+**[Download the complete SHARMAT 3.1.9.7 ZIP](https://github.com/Wondernuttz/Sharmat-Alpha/releases/download/v3.1.9.7/SHARMAT-3.1.9.7.zip)**
 
 Install the ZIP in MO2 or Vortex over your existing SHARMAT mod. Keep
 `AIAgentNSFW.esp` enabled. Update the server through SHARMAT's Info page as well.
@@ -13,6 +13,6 @@ and the standard **Drunk animations 1.6.1** main file from
 Let SHARMAT win the animation pack's `config.json` conflict. Custom OAR overrides
 need the SHARMAT condition merged into them. No animation assets are bundled.
 
-Version 3.1.9.6 fixes partner-specific NPC dialogue context and OStim participant
-handling. Update both PHP and game files. The drunk-animation integration remains
-included, preserving the animation pack's existing triggers and priority.
+Version 3.1.9.7 adds global and per-NPC Speak Style controls and fixes scene
+partner context, OStim affection roles and stale fertility state. Update both
+PHP and game files. The existing drunk-animation integration remains included.

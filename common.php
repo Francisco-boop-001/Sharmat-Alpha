@@ -62,13 +62,17 @@ function processInfoFertility()
     global $gameRequest;
 
     if ($gameRequest[0] == "fertility_notification") {
-        $actor = $GLOBALS["HERIKA_NAME"];
         $subCmd = explode("@", $gameRequest[3]);
+        // The payload identifies the observed actor; routing can target the Narrator.
+        $actor = trim((string)($subCmd[0] ?? ""));
+        if ($actor === "" || nsfwIsNarratorName($actor)) { return; }
         $eventType = $subCmd[1] ?? '';
 
         // THROTTLE: Safety net to prevent duplicate processing even if FMR sends extras
         // Critical events (birth, death, miscarriage) bypass throttle
-        $criticalEvents = ['birth', 'baby_death', 'miscarriage', 'mother_death', 'aborted', 'tragedy'];
+        // Authoritative status must always apply, including pregnant -> cycle -> pregnant
+        // within one throttle window or immediately after a playthrough switch.
+        $criticalEvents = ['pregnant', 'cycle', 'recovery', 'cleared', 'conceived', 'birth', 'baby_death', 'miscarriage', 'mother_death', 'aborted', 'tragedy'];
         $throttleSeconds = 30;
 
         if (!in_array($eventType, $criticalEvents)) {
@@ -104,6 +108,21 @@ function processInfoFertility()
 
         error_log("[CHIM-NSFW FERTILITY] Processing: " . $gameRequest[3]);
 
+        // A new status replaces incompatible pregnancy context, not just its boolean.
+        if (in_array($eventType, ['cycle', 'cleared', 'aborted'], true)) {
+            foreach (['fertility_father', 'fertility_recovery_day', 'fertility_cycle_phase',
+                'fertility_conceived_ts', 'fertility_birth_ts', 'fertility_recent_birth'] as $key) {
+                unset($extended[$key]);
+            }
+            $extended['fertility_progress'] = 0;
+        } elseif ($eventType === 'pregnant') {
+            unset($extended['fertility_cycle_phase'], $extended['fertility_recovery_day'],
+                $extended['fertility_birth_ts'], $extended['fertility_recent_birth']);
+        } elseif (in_array($eventType, ['recovery', 'birth', 'miscarriage', 'baby_death'], true)) {
+            $extended['fertility_progress'] = 0;
+            unset($extended['fertility_conceived_ts']);
+        }
+
         switch ($eventType) {
             case 'pregnant':
                 // Format: name@pregnant@progress@fatherName (from FMR_ActorStatus)
@@ -111,11 +130,9 @@ function processInfoFertility()
                 $extended["fertility_progress"] = intval($subCmd[2] ?? 0);
                 $fatherRaw = $subCmd[3] ?? '';
                 // The Narrator must NEVER be substituted as the player/father - that fabricates lineage.
-                // Leave it unknown (empty); consumers degrade gracefully. A genuinely empty father still defaults to the player.
+                // An absent father is unknown; never manufacture player parentage.
                 if (nsfwIsNarratorName($fatherRaw)) {
                     $fatherRaw = '';
-                } else if ($fatherRaw === '') {
-                    $fatherRaw = $GLOBALS['PLAYER_NAME'] ?? $fatherRaw;
                 }
                 $extended["fertility_father"] = $fatherRaw;
                 break;
@@ -128,7 +145,7 @@ function processInfoFertility()
                 break;
 
             case 'cycle':
-                // Format: name@cycle@menses|ovulation|pms (from FMR_ActorStatus rank 116-119; follicular unreported)
+                // Format: name@cycle@menses|follicular|ovulation|pms (from FMR_ActorStatus rank 116-119)
                 $extended["fertility_is_pregnant"] = false;
                 $extended["fertility_cycle_phase"] = strval($subCmd[2] ?? '');
                 unset($extended["fertility_recovery_day"]);
@@ -232,7 +249,7 @@ function processInfoFertility()
         }
 
         // Save to nsfw_npc_data table
-        NsfwNpcData::save($actor, $extended);
+        NsfwNpcData::save($actor, $extended, true);
 
         // Update gamets in core_npc_master (timestamp only)
         $npcManager = new NpcMaster();

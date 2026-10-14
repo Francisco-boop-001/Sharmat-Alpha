@@ -4427,10 +4427,12 @@ Event OnFMRActorStatus(Form akActor, int factionRank, string fatherName, int fat
 		AIAgentFunctions.logMessageForActor(motherName + "@recovery@" + recoveryDay, "fertility_notification", motherName)
 	elseif factionRank >= 116 && factionRank <= 119
 		; Cycle phases (2026-07-06): 116=Menstruation, 117=Follicular, 118=Ovulation, 119=Luteal/PMS.
-		; Follicular is the neutral baseline - deliberately not reported.
+		; Report the neutral baseline too, so the server clears older pregnancy state.
 		string cyclePhase = ""
 		if factionRank == 116
 			cyclePhase = "menses"
+		elseif factionRank == 117
+			cyclePhase = "follicular"
 		elseif factionRank == 118
 			cyclePhase = "ovulation"
 		elseif factionRank == 119

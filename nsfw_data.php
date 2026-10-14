@@ -1106,7 +1106,7 @@ class NsfwNpcData {
      * IMPORTANT: Uses normalized name matching to prevent duplicates.
      * "whiterun_guard", "Whiterun Guard", and "whiterun guard" are all the same NPC.
      */
-    public static function save($npcName, $data) {
+    public static function save($npcName, $data, $fertilityUpdate = false) {
         if (empty($npcName)) return false;
 
         if (!isset($GLOBALS['db'])) return false;
@@ -1147,17 +1147,28 @@ class NsfwNpcData {
                     }
                 }
 
-                $jsonData = $GLOBALS['db']->escape(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                // Fertility observations and profile saves own separate JSON fields.
+                // Merge against the current database row atomically, so a stale UI/profile
+                // snapshot cannot resurrect a pregnancy that the game already cleared.
+                $data = array_filter($data, static function ($key) use ($fertilityUpdate) {
+                    return (strpos($key, 'fertility_') === 0) === $fertilityUpdate;
+                }, ARRAY_FILTER_USE_KEY);
+                $jsonData = $GLOBALS['db']->escape(json_encode((object)$data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                $keepOperator = $fertilityUpdate ? '<>' : '=';
+                $preserved = "COALESCE((SELECT jsonb_object_agg(key, value) FROM jsonb_each(COALESCE(extended_data, '{}'::jsonb)) WHERE left(key, 10) {$keepOperator} 'fertility_'), '{}'::jsonb)";
                 // Update existing record (use the stored name to preserve original casing)
                 $storedName = $GLOBALS['db']->escape($existing['npc_name']);
                 $GLOBALS['db']->execQuery(
                     "UPDATE nsfw_npc_data SET
-                        extended_data = '$jsonData'::jsonb,
+                        extended_data = '$jsonData'::jsonb || $preserved,
                         updated_at = CURRENT_TIMESTAMP
                      WHERE npc_name = '$storedName'"
                 );
             } else {
-                $jsonData = $GLOBALS['db']->escape(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                $data = array_filter((array)$data, static function ($key) use ($fertilityUpdate) {
+                    return (strpos($key, 'fertility_') === 0) === $fertilityUpdate;
+                }, ARRAY_FILTER_USE_KEY);
+                $jsonData = $GLOBALS['db']->escape(json_encode((object)$data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
                 // Insert new record with the display name format (proper case with spaces)
                 // Convert system name format to display name if needed
                 $displayName = $npcName;
@@ -1175,7 +1186,7 @@ class NsfwNpcData {
 
             // Update cache with normalized key
             sharmatSyncNpcPluginData($npcName);
-            self::$cache[$normalizedName] = $data;
+            unset(self::$cache[$normalizedName]); // The SQL merge may have preserved newer fields.
 
             return true;
         } catch (Exception $e) {

@@ -396,11 +396,16 @@ $__frameworkDefeatPathActive = is_array($__intimacyPromptState)
     && !empty($__intimacyPromptState["scene_player_is_victim"])
     && !empty($__intimacyPromptState["scene_actor_is_aggressor"]);
 
+// NPC-scene relationship and service context is already supplied by prerequest.
+// Player-addressed overhead here would contradict the actual partner's tier/style.
+require_once __DIR__ . '/npc_scene_tone.php';
+$__npcDirectedContext = aiagentNsfwHasNpcSceneContext($__intimacyPromptState);
+
 // Persistent SHARMAT relationship/role overhead. These are injected before scene/tier/intoxication prompts so
 // current relationship and checked slave/prostitute status color ordinary model turns without changing gates/tools.
 if (isset($GLOBALS["HERIKA_PERS"]) && class_exists('NsfwRelationship') && !$__frameworkDefeatPathActive) {
     $__roleOverheadBlocks = [];
-    if (method_exists('NsfwRelationship', 'getRelationshipOverhead')) {
+    if (!$__npcDirectedContext && method_exists('NsfwRelationship', 'getRelationshipOverhead')) {
         $__relationshipOverhead = NsfwRelationship::getRelationshipOverhead($actorName, $GLOBALS['PLAYER_NAME'] ?? 'Player');
         if ($__relationshipOverhead !== '') {
             $__roleOverheadBlocks[] = $__relationshipOverhead;
@@ -412,7 +417,7 @@ if (isset($GLOBALS["HERIKA_PERS"]) && class_exists('NsfwRelationship') && !$__fr
             $__roleOverheadBlocks[] = $__roleStatusOverhead;
         }
     }
-    if (method_exists('NsfwRelationship', 'getRoleContextOverhead')) {
+    if (!$__npcDirectedContext && method_exists('NsfwRelationship', 'getRoleContextOverhead')) {
         $__roleContextOverhead = NsfwRelationship::getRoleContextOverhead($actorName, $GLOBALS['PLAYER_NAME'] ?? 'Player');
         if ($__roleContextOverhead !== '') {
             $__roleOverheadBlocks[] = $__roleContextOverhead;

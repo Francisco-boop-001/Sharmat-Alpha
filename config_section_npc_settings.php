@@ -108,6 +108,19 @@
                         </div>
                     </div>
 
+                    <div class="settings-checkbox-group" style="background: #252233; border: 1px solid #4A3545; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0 0 8px;">
+                            <input type="checkbox" id="npcSceneStyleUseGlobal" checked>
+                            <span class="gold-glow-text">Use global dialogue setting</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0;">
+                            <input type="checkbox" id="npcSceneRelationshipStyleCheck" checked disabled>
+                            <span class="gold-glow-text">Use relationship checks for NPC-to-NPC scene dialogue</span>
+                        </label>
+                        <p class="legend" style="margin: 6px 0 0 28px;">Use the global default, or uncheck it to change the relationship check for this NPC only. NPCs marked Slutty automatically keep their selected Speak Style. Partner context still applies. Dialogue only; scene-start rules are unchanged.</p>
+                        <p id="npcSceneStyleStatus" class="legend" style="margin: 6px 0 0 28px;">Following the saved global setting.</p>
+                    </div>
+
                     <!-- Relationship Status Row -->
                     <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
                         <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">

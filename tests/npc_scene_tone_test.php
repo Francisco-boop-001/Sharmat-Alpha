@@ -27,4 +27,30 @@ toneCheck(!aiagentNsfwNpcSceneTonePolicy('A','B',['aff'=>30],[],[],31)['allow_st
 foreach ([[], ['is_npc_scene'=>false], ['is_npc_scene'=>true,'scene_phase'=>'invite'], ['is_npc_scene'=>true,'scene_phase'=>'ended'], ['is_npc_scene'=>true,'scene_phase'=>'accepted','scene_actors'=>[]], ['is_npc_scene'=>true,'scene_phase'=>'accepted','scene_actors'=>['A','B'],'scene_is_idle'=>true]] as $status) {
     toneCheck(aiagentNsfwGetNpcSceneTone('A',$status) === null, 'inactive, player, invite and idle routes must be untouched');
 }
+foreach ([false, 'false', 0, '0'] as $off) {
+    $p = aiagentNsfwNpcSceneTonePolicy('Speaker','Partner B',$low,$profile + ['npc_scene_relationship_style_check'=>$off],$player);
+    toneCheck($p['allow_style'] && $p['reason']==='style_check_disabled', 'explicit off preserves the selected style');
+    $cue = aiagentNsfwApplyNpcSceneTone('STYLE_SENTINEL', $p);
+    toneCheck(str_contains($cue,'STYLE_SENTINEL') && str_contains($cue,'affinity 8'), 'disabled style check retains style and actual relationship');
+    toneCheck(str_contains($cue,'existing romantic bond'), 'disabled style check does not erase an existing bond');
+}
+toneCheck(!aiagentNsfwNpcSceneTonePolicy('A','B',$low,$profile + ['npc_scene_relationship_style_check'=>true],$player)['allow_style'], 'explicit on retains previous protection');
+foreach (['invite','accepted','engaged'] as $phase) toneCheck(aiagentNsfwHasNpcSceneContext(['is_npc_scene'=>true,'scene_phase'=>$phase,'scene_actors'=>['A','B']]), 'NPC route suppresses player-addressed overhead');
+foreach ([[],['is_npc_scene'=>false,'scene_phase'=>'engaged','scene_actors'=>['A','Player']],['is_npc_scene'=>true,'scene_phase'=>'ended','scene_actors'=>['A','B']]] as $status) toneCheck(!aiagentNsfwHasNpcSceneContext($status), 'ordinary/player/ended context keeps player overhead');
+
+foreach ([true,false,'false','0','1'] as $global) {
+    foreach (['A','Another NPC'] as $actor) {
+        $p=aiagentNsfwNpcSceneTonePolicy($actor,'B',$low,[],$player,56,false,$global);
+        toneCheck($p['allow_style'] === !filter_var($global,FILTER_VALIDATE_BOOLEAN), 'global default applies to every unoverridden NPC');
+    }
+}
+foreach ([true,false] as $global) {
+    foreach ([true,false] as $override) {
+        $p=aiagentNsfwNpcSceneTonePolicy('A','B',$low,['npc_scene_relationship_style_check'=>$override],$player,56,false,$global);
+        toneCheck($p['allow_style'] === !$override, 'explicit NPC override wins over global default');
+        $p=aiagentNsfwNpcSceneTonePolicy('A','B',$low,['is_slut'=>true,'npc_scene_relationship_style_check'=>$override],$player,56,false,$global);
+        toneCheck($p['allow_style'] && $p['reason']==='profile_role', 'generated/manual role bypass wins over both settings');
+    }
+}
+toneCheck(!aiagentNsfwNpcSceneTonePolicy('A','B',$low,['is_slut'=>'false'],$player)['allow_style'], 'false string is not a role flag');
 echo "npc_scene_tone_test: {$checks} checks passed\n";
