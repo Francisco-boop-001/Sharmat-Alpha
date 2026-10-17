@@ -573,6 +573,16 @@ function _sharmatBuildModArchive($modDir, $archivePath)
         'version.txt',
         'README.txt',
     ];
+    $version = trim((string)@file_get_contents($modDir . DIRECTORY_SEPARATOR . 'version.txt'));
+    if (!preg_match('/^[0-9]+(?:\.[0-9]+)*$/', $version)) {
+        throw new RuntimeException('Game mod directory has an invalid version marker');
+    }
+    // The shared scene engine delegates to these adapters starting with 3.1.9.8.
+    // Require both so a partial install falls back to the complete release ZIP.
+    if (version_compare($version, '3.1.9.8', '>=')) {
+        $runtimeFiles[] = 'Scripts/AIAgentNSFWOStim.pex';
+        $runtimeFiles[] = 'Scripts/AIAgentNSFWSexLab.pex';
+    }
     foreach ($runtimeFiles as $marker) {
         $path = $modDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $marker);
         if (!is_file($path)) {
@@ -586,7 +596,6 @@ function _sharmatBuildModArchive($modDir, $archivePath)
         }
     }
     // Include the matching embedded server package when this installation carries it.
-    $version = trim((string)file_get_contents($modDir . DIRECTORY_SEPARATOR . 'version.txt'));
     if (preg_match('/^[0-9]+(?:\.[0-9]+)*$/', $version)) {
         $embedded = 'CHIM/server-plugins/aiagent_nsfw/' . $version . '.dwpkg';
         $embeddedPath = $modDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $embedded);

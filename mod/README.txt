@@ -1,8 +1,9 @@
-SHARMAT 3.1.9.8 - Optional Scene Framework Fix
+SHARMAT 3.1.9.9 - Complete Game Download Hotfix
 
 INSTALL / UPDATE
 1. Fully exit Skyrim.
 2. Install the complete release ZIP into your existing SHARMAT mod in MO2 or Vortex.
+   Ensure this mod wins conflicts for Scripts/AIAgentNSFW*.pex.
 3. Keep AIAgentNSFW.esp enabled. Preserve any custom values in
    SKSE/Plugins/StorageUtilData/SHARMAT_scene_framework.json.
 4. Restart Skyrim and load a save.
@@ -11,7 +12,11 @@ Requires CHIM and its normal dependencies, plus the enabled OStim or SexLab
 framework and suitable installed animations. Those frameworks and animation
 packs are separate downloads.
 
-This update fixes scene-event registration when only OStim or only SexLab is
+This update fixes the web download builder omitting the OStim and SexLab adapter
+scripts. Incomplete local game files now fall back to the matching release ZIP.
+The game scripts are unchanged from the complete 3.1.9.8 GitHub release.
+
+The included game scripts fix scene-event registration when only OStim or only SexLab is
 installed. The shared scripts no longer require types from the absent framework.
 Both frameworks can also be installed together. Existing scene selection, roles,
 transitions and cleanup remain supported. No new save or quest reset is needed.

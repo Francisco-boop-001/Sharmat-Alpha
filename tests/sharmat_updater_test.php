@@ -63,6 +63,8 @@ function updaterBuildPackage($root)
     updaterWrite($root . '/mod/Scripts/AIAgentNSFW.pex', 'test script');
     updaterWrite($root . '/mod/Scripts/AIAgentNSFWPlayerAlias.pex', 'test alias script');
     updaterWrite($root . '/mod/Scripts/AIAgentNSFWSceneEngine.pex', 'test scene engine');
+    updaterWrite($root . '/mod/Scripts/AIAgentNSFWOStim.pex', 'test OStim adapter');
+    updaterWrite($root . '/mod/Scripts/AIAgentNSFWSexLab.pex', 'test SexLab adapter');
     updaterWrite($root . '/mod/Scripts/AIAgentVRItems.pex', 'test VR script');
     updaterWrite($root . '/mod/Seq/AIAgentNSFW.seq', 'test sequence');
     updaterWrite($root . '/mod/SKSE/Plugins/StorageUtilData/SHARMAT_scene_framework.json', '{"ostim":1,"sexlab":1}');
@@ -156,13 +158,15 @@ try {
 
     $modArchivePath = $testRoot . '/game-mod.zip';
     $modFileCount = _sharmatBuildModArchive($extractedRoot . '/mod', $modArchivePath);
-    updaterAssert($modFileCount === 10, 'game-mod archive contains the complete runtime payload');
+    updaterAssert($modFileCount === 12, 'game-mod archive contains the complete runtime payload');
     $modArchive = new ZipArchive();
     updaterAssert($modArchive->open($modArchivePath) === true, 'game-mod archive opens');
     updaterAssert($modArchive->locateName('meshes/actors/character/animations/OpenAnimationReplacer/Drunk animations/Drunk animations/config.json') !== false, 'game-mod archive contains the drunk compatibility condition');
     updaterAssert($modArchive->locateName('AIAgentNSFW.esp') !== false, 'game-mod archive contains the plugin');
     updaterAssert($modArchive->locateName('Scripts/AIAgentNSFW.pex') !== false, 'game-mod archive contains the compiled script');
     updaterAssert($modArchive->locateName('Scripts/AIAgentNSFWSceneEngine.pex') !== false, 'game-mod archive contains the scene engine');
+    updaterAssert($modArchive->getFromName('Scripts/AIAgentNSFWOStim.pex') === 'test OStim adapter', 'game-mod archive preserves the OStim adapter');
+    updaterAssert($modArchive->getFromName('Scripts/AIAgentNSFWSexLab.pex') === 'test SexLab adapter', 'game-mod archive preserves the SexLab adapter');
     updaterAssert($modArchive->locateName('Source/Scripts/AIAgentNSFWSceneEngine.psc') === false, 'game-mod archive excludes development source');
     updaterAssert($modArchive->locateName('Scripts/unused.pex') === false, 'game-mod archive excludes unused scripts');
     updaterAssert($modArchive->locateName('Source/ignored.bak') === false, 'game-mod archive excludes backup junk');
@@ -192,10 +196,38 @@ try {
     updaterAssert(!file_exists($testRoot . '/incomplete-mod.zip'), 'incomplete mod is not offered as an archive');
     rename($sceneEnginePath . '.missing', $sceneEnginePath);
 
+    foreach (['AIAgentNSFWOStim.pex', 'AIAgentNSFWSexLab.pex'] as $adapter) {
+        $adapterPath = $extractedRoot . '/mod/Scripts/' . $adapter;
+        rename($adapterPath, $adapterPath . '.missing');
+        $missingAdapterRejected = false;
+        try {
+            _sharmatBuildModArchive($extractedRoot . '/mod', $testRoot . '/missing-adapter.zip');
+        } catch (RuntimeException $error) {
+            $missingAdapterRejected = strpos($error->getMessage(), $adapter) !== false;
+        } finally {
+            rename($adapterPath . '.missing', $adapterPath);
+        }
+        updaterAssert($missingAdapterRejected, 'game-mod download rejects missing ' . $adapter);
+        updaterAssert(!file_exists($testRoot . '/missing-adapter.zip'), 'missing adapter does not produce an incomplete archive');
+    }
+
+    // Older game mods predate the adapters and must remain downloadable.
+    updaterWrite($extractedRoot . '/mod/version.txt', '3.1.9.7');
+    foreach (['AIAgentNSFWOStim.pex', 'AIAgentNSFWSexLab.pex'] as $adapter) {
+        rename($extractedRoot . '/mod/Scripts/' . $adapter, $extractedRoot . '/mod/Scripts/' . $adapter . '.missing');
+    }
+    updaterAssert(_sharmatBuildModArchive($extractedRoot . '/mod', $testRoot . '/legacy-mod.zip') === 10, 'legacy game mod does not require newer adapters');
+    foreach (['AIAgentNSFWOStim.pex', 'AIAgentNSFWSexLab.pex'] as $adapter) {
+        rename($extractedRoot . '/mod/Scripts/' . $adapter . '.missing', $extractedRoot . '/mod/Scripts/' . $adapter);
+    }
+    updaterWrite($extractedRoot . '/mod/version.txt', '3.1.9.8');
+    updaterAssert(_sharmatBuildModArchive($extractedRoot . '/mod', $testRoot . '/current-mod.zip') === 12, '3.1.9.8 includes both adapters');
+    updaterWrite($extractedRoot . '/mod/version.txt', '9.9.9');
+
     updaterWrite($extractedRoot . '/mod/CHIM/server-plugins/aiagent_nsfw/9.9.9.dwpkg', 'matching server package');
     updaterWrite($extractedRoot . '/mod/CHIM/server-plugins/aiagent_nsfw/1.0.0.dwpkg', 'stale server package');
     $embeddedArchivePath = $testRoot . '/game-mod-embedded.zip';
-    updaterAssert(_sharmatBuildModArchive($extractedRoot . '/mod', $embeddedArchivePath) === 11, 'matching embedded package is included');
+    updaterAssert(_sharmatBuildModArchive($extractedRoot . '/mod', $embeddedArchivePath) === 13, 'matching embedded package is included');
     updaterAssert($modArchive->open($embeddedArchivePath) === true, 'embedded mod archive opens');
     updaterAssert($modArchive->locateName('CHIM/server-plugins/aiagent_nsfw/9.9.9.dwpkg') !== false, 'current embedded package is present');
     updaterAssert($modArchive->locateName('CHIM/server-plugins/aiagent_nsfw/1.0.0.dwpkg') === false, 'stale embedded package is excluded');
