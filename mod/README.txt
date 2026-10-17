@@ -1,4 +1,4 @@
-SHARMAT 3.1.9.7 - Scene Dialogue, Affection Roles and Fertility State
+SHARMAT 3.1.9.8 - Optional Scene Framework Fix
 
 INSTALL / UPDATE
 1. Fully exit Skyrim.
@@ -11,9 +11,13 @@ Requires CHIM and its normal dependencies, plus the enabled OStim or SexLab
 framework and suitable installed animations. Those frameworks and animation
 packs are separate downloads.
 
-This update adds global and per-NPC Speak Style controls, corrects NPC scene
-partner context and OStim affection roles, and prevents stale profile saves
-from restoring cleared pregnancy state. Both server and game files must be updated.
+This update fixes scene-event registration when only OStim or only SexLab is
+installed. The shared scripts no longer require types from the absent framework.
+Both frameworks can also be installed together. Existing scene selection, roles,
+transitions and cleanup remain supported. No new save or quest reset is needed.
+
+The fix requires the updated game scripts. The matching server update supplies
+the current version and game-download link; a server-only update is insufficient.
 
 The Sharmat web updater updates the SERVER component. After updating, use
 Download Game Mod on the Info page to obtain the matching game files.

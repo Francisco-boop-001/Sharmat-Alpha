@@ -8,13 +8,15 @@ Scriptname AIAgentNSFWSceneEngine Hidden
 ; ============================================================
 ; ENGINE DETECTION
 ; ============================================================
+bool Function HasSexLab() global
+    return (Game.GetFormFromFile(0xD62, "SexLab.esm") as Quest) != None
+EndFunction
+
 bool Function HasOStim() global
     return (Game.GetFormFromFile(0x000801, "Ostim.esp") as Quest) != None
 EndFunction
 
-SexLabFramework Function GetSexLab() global
-    return Game.GetFormFromFile(0xD62, "SexLab.esm") as SexLabFramework
-EndFunction
+
 
 ; PapyrusUtil JsonUtil root is Data/SKSE/Plugins/StorageUtilData/. Missing file = both on.
 string Function SceneFrameworkFile() global
@@ -42,7 +44,7 @@ bool Function UseOStimEngine() global
 EndFunction
 
 bool Function UseSexLabEngine() global
-    return DetectSexLabScenes() && GetSexLab() != None
+    return DetectSexLabScenes() && HasSexLab()
 EndFunction
 
 string Function AppendFwTag(string payload, string fw) global
@@ -279,7 +281,7 @@ bool Function StartOrJoinScene(Actor akSpeaker, Actor akTarget, bool bAllowJoin 
         return StartOrJoinOStim(akSpeaker, akTarget, bAllowJoin, sceneAct)
     endif
     if UseSexLabEngine()
-        return StartOrJoinSexLab(akSpeaker, akTarget, bAllowJoin, sceneAct)
+        return AIAgentNSFWSexLab.StartOrJoinSexLab(akSpeaker, akTarget, bAllowJoin, sceneAct)
     endif
     Debug.Trace("[CHIM-NSFW SceneEngine] No OStim or SexLab detected")
     return false
@@ -302,17 +304,9 @@ bool Function StartSoloScene(Actor akActor, string sceneAct = "") global
         Debug.Trace("[CHIM-NSFW SceneEngine] OStim: starting solo scene " + akActor.GetDisplayName() + " act=" + sceneAct)
         return StartOStimScene(solo, sceneAct) >= 0
     endif
-    SexLabFramework slf = GetSexLab()
-    if UseSexLabEngine() && slf != None
-        if slf.FindActorController(akActor) >= 0
-            return true ; already in a scene
-        endif
-        Actor[] solo = new Actor[1]
-        solo[0] = akActor
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab: starting solo scene " + akActor.GetDisplayName() + " act=" + sceneAct)
-        return StartSexLabScene(slf, solo, sceneAct)
+    if UseSexLabEngine()
+        return AIAgentNSFWSexLab.StartSoloScene(akActor, sceneAct)
     endif
-    Debug.Trace("[CHIM-NSFW SceneEngine] No OStim or SexLab detected (solo)")
     return false
 EndFunction
 
@@ -393,58 +387,9 @@ bool Function StartGroupScene(Actor[] actors, int count, string sceneAct = "") g
         Debug.Trace("[CHIM-NSFW SceneEngine] OStim: fresh group scene with " + group.Length + " actors, act=" + sceneAct)
         return StartOStimScene(group, sceneAct, true) >= 0
     endif
-    SexLabFramework slf = GetSexLab()
-    if UseSexLabEngine() && slf != None
-        int liveController = -1
-        bool conflictingControllers = false
-        i = 0
-        while i < group.Length
-            int actorController = slf.FindActorController(group[i])
-            if actorController >= 0
-                if liveController < 0
-                    liveController = actorController
-                elseif actorController != liveController
-                    conflictingControllers = true
-                endif
-            endif
-            i += 1
-        endwhile
-        if conflictingControllers
-            Debug.Trace("[CHIM-NSFW SceneEngine] SexLab group merge aborted: requested actors belong to different live controllers")
-            return false
-        endif
-        if liveController >= 0
-            sslThreadController groupCtrl = slf.GetController(liveController)
-            if groupCtrl == None
-                return false
-            endif
-            Actor[] combinedS = groupCtrl.Positions
-            bool mergeOverflowS = false
-            i = 0
-            while i < group.Length
-                if combinedS.Find(group[i]) < 0
-                    if combinedS.Length < 5
-                        combinedS = PapyrusUtil.PushActor(combinedS, group[i])
-                    else
-                        mergeOverflowS = true
-                    endif
-                endif
-                i += 1
-            endwhile
-            if mergeOverflowS
-                Debug.Trace("[CHIM-NSFW SceneEngine] SexLab group merge aborted: combined roster exceeds five actors")
-                return false
-            endif
-            if !StopSexLabControllerAndWait(slf, groupCtrl, liveController, combinedS)
-                return false
-            endif
-            Debug.Trace("[CHIM-NSFW SceneEngine] SexLab: group merge from controller " + liveController + " -> " + combinedS.Length + " actors")
-            return StartSexLabScene(slf, combinedS, sceneAct)
-        endif
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab: fresh group scene with " + group.Length + " actors, act=" + sceneAct)
-        return StartSexLabScene(slf, group, sceneAct)
+    if UseSexLabEngine()
+        return AIAgentNSFWSexLab.StartGroupScene(group, sceneAct)
     endif
-    Debug.Trace("[CHIM-NSFW SceneEngine] No OStim or SexLab detected (group)")
     return false
 EndFunction
 
@@ -460,6 +405,9 @@ bool Function LeaveScene(Actor akLeaver) global
     if HasOStim()
         int tid = OActor.GetSceneID(akLeaver)
         if tid < 0
+            if HasSexLab()
+                return AIAgentNSFWSexLab.LeaveScene(akLeaver)
+            endif
             return false
         endif
         Actor[] current = OThread.GetActors(tid)
@@ -483,36 +431,8 @@ bool Function LeaveScene(Actor akLeaver) global
         Debug.Trace("[CHIM-NSFW SceneEngine] OStim: " + akLeaver.GetDisplayName() + " left; restarting with " + rest.Length + " actors")
         return StartOStimScene(rest, "") >= 0
     endif
-    SexLabFramework slf = GetSexLab()
-    if slf != None
-        int cid = slf.FindActorController(akLeaver)
-        if cid < 0
-            return false
-        endif
-        sslThreadController ctrl = slf.GetController(cid)
-        if ctrl == None
-            return false
-        endif
-        Actor[] currentS = ctrl.Positions
-        if !StopSexLabControllerAndWait(slf, ctrl, cid, currentS)
-            return false
-        endif
-        if currentS.Length <= 2
-            return true
-        endif
-        Actor[] restS = PapyrusUtil.ActorArray(0)
-        int j = 0
-        while j < currentS.Length
-            if currentS[j] != None && currentS[j] != akLeaver
-                restS = PapyrusUtil.PushActor(restS, currentS[j])
-            endif
-            j += 1
-        endwhile
-        if restS.Length < 2
-            return true
-        endif
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab: " + akLeaver.GetDisplayName() + " left; restarting with " + restS.Length + " actors")
-        return StartSexLabScene(slf, restS, "")
+    if HasSexLab()
+        return AIAgentNSFWSexLab.LeaveScene(akLeaver)
     endif
     return false
 EndFunction
@@ -813,24 +733,7 @@ EndFunction
 ; ============================================================
 ; SHARED ROLE / TEARDOWN HELPERS
 ; ============================================================
-Actor[] Function NormalizeSexLabActors(SexLabFramework slf, Actor[] actors) global
-    ; SexLab StartSex defines slot 0 as the passive position and its animation
-    ; registry generally expects female positions first. SHARMAT used to pass
-    ; [speaker, target] unchanged, which made the initiator accidentally decide
-    ; the passive/active assignment before SexLab selected an animation.
-    if slf == None || actors.Length < 2
-        return actors
-    endif
 
-    Actor[] sorted = slf.SortActors(actors, true)
-    if sorted.Length == actors.Length
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab role sort: " + RosterNames(actors) + " -> " + RosterNames(sorted) + " (slot 0 = passive, female first)")
-        return sorted
-    endif
-
-    Debug.Trace("[CHIM-NSFW SceneEngine] SexLab role sort failed; keeping original roster " + RosterNames(actors))
-    return actors
-EndFunction
 
 ; One authority for OStim actor-slot policy. Affection and sexual scenes use OStim sorting;
 ; directed services retain giver/receiver order. Anatomy, Always Dominant/Submissive, and the
@@ -909,205 +812,26 @@ bool Function StopOStimThreadAndWait(int threadID, Actor[] actors) global
     return true
 EndFunction
 
-bool Function SexLabRosterIsReleased(SexLabFramework slf, Actor[] actors) global
-    if slf == None
-        return false
-    endif
-    int i = 0
-    while i < actors.Length
-        if actors[i] == None || slf.FindActorController(actors[i]) >= 0
-            return false
-        endif
-        i += 1
-    endwhile
-    return true
-EndFunction
+
 
 ; SexLab teardown is asynchronous. Do not start a replacement until every requested actor has left
 ; its controller; a timeout is a hard failure so two controllers can never claim the same actor.
-bool Function StopSexLabControllerAndWait(SexLabFramework slf, sslThreadController ctrl, int threadID, Actor[] actors) global
-    if slf == None || ctrl == None
-        return false
-    endif
-    ctrl.EndAnimation(true)
-    int guard = 0
-    while guard < 50 && !SexLabRosterIsReleased(slf, actors)
-        Utility.Wait(0.2)
-        guard += 1
-    endwhile
-    if !SexLabRosterIsReleased(slf, actors)
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab restart aborted: controller " + threadID + " did not release its actors")
-        return false
-    endif
-    return true
-EndFunction
+
 
 ; ============================================================
 ; SEXLAB
 ; ============================================================
-bool Function StartOrJoinSexLab(Actor akSpeaker, Actor akTarget, bool bAllowJoin, string sceneAct = "") global
-    SexLabFramework slf = GetSexLab()
-    if slf == None
-        return false
-    endif
-    int speakerThread = slf.FindActorController(akSpeaker)
-    int targetThread = slf.FindActorController(akTarget)
-    int activeThread = speakerThread
-    if activeThread < 0
-        activeThread = targetThread
-    endif
 
-    if activeThread < 0
-        Actor[] pair = new Actor[2]
-        pair[0] = akSpeaker
-        pair[1] = akTarget
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab: starting new scene " + akSpeaker.GetDisplayName() + " + " + akTarget.GetDisplayName() + " act=" + sceneAct)
-        return StartSexLabScene(slf, pair, sceneAct)
-    endif
 
-    if speakerThread >= 0 && targetThread >= 0 && speakerThread != targetThread
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab join aborted: actors belong to different live controllers (" + speakerThread + ", " + targetThread + ")")
-        return false
-    endif
 
-    ; Both already in the SAME SexLab scene -> SHIFT to the requested act (parity with the OStim
-    ; ShiftOStimSceneToAct path). SexLab has no in-thread WarpTo, so ShiftSexLabScene does a quick stop+restart
-    ; with animations matching the new act. Same actors, new act (e.g. she asks for a blowjob mid-scene).
-    if speakerThread >= 0 && targetThread >= 0 && speakerThread == targetThread
-        if sceneAct != ""
-            return ShiftSexLabScene(slf, speakerThread, sceneAct)
-        endif
-        return true
-    endif
 
-    if !bAllowJoin
-        return false
-    endif
 
-    Actor joiner = akSpeaker
-    if speakerThread >= 0
-        joiner = akTarget
-    endif
-    Debug.Trace("[CHIM-NSFW SceneEngine] SexLab: joining controller " + activeThread + " with " + joiner.GetDisplayName())
-    return AddActorToSexLabThread(slf, activeThread, joiner)
-EndFunction
-
-bool Function StartSexLabScene(SexLabFramework slf, Actor[] actors, string sceneAct = "") global
-    if RosterContainsProtectedMinor(actors)
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab start blocked: protected minor in actor roster")
-        return false
-    endif
-    actors = NormalizeSexLabActors(slf, actors)
-    int[] genders = slf.GenderCount(actors)
-    int males = genders[0]
-    int females = genders[1]
-    sslBaseAnimation[] anims = slf.GetAnimationsByDefault(males, females) ; default baseline (always valid)
-    string tags = SexLabTagsForAct(sceneAct)
-    sslBaseAnimation[] tagged
-    int taggedCount = 0
-    if tags != ""
-        tagged = slf.GetAnimationsByDefaultTags(males, females, false, false, true, tags, "", false)
-        if tagged
-            taggedCount = tagged.Length
-        endif
-        if taggedCount < 1 && sceneAct == "bloodfeed"
-            ; No vampire-tagged SexLab animations installed (vanilla registry has none) - prefer an embrace-style
-            ; foreplay/leadin scene over a random default so the feed still reads as a neck bite (fix 2026-07-01)
-            tagged = slf.GetAnimationsByDefaultTags(males, females, false, false, true, "Foreplay,LeadIn", "", false)
-            if tagged
-                taggedCount = tagged.Length
-            endif
-        endif
-    endif
-    if taggedCount < 1 && !OStimActAvoidsSexualFallback(sceneAct) && RosterIsPlayerFemaleFemalePair(actors)
-        tagged = slf.GetAnimationsByDefaultTags(males, females, false, false, true, "Lesbian,Cunnilingus", "", false)
-        if tagged
-            taggedCount = tagged.Length
-        endif
-        if taggedCount >= 1
-            Debug.Trace("[CHIM-NSFW SceneEngine] SexLab FF player pair: using lesbian/cunnilingus animations")
-        endif
-    endif
-    if taggedCount >= 1
-        anims = tagged ; steer to the requested act when matches exist
-    endif
-    return slf.StartSex(actors, anims) >= 0
-EndFunction
-
-bool Function AddActorToSexLabThread(SexLabFramework slf, int threadID, Actor joiner) global
-    if slf == None || joiner == None
-        return false
-    endif
-    sslThreadController ctrl = slf.GetController(threadID)
-    if ctrl == None
-        return false
-    endif
-    Actor[] current = ctrl.Positions
-    if current.Length < 1 || current.Length >= 5
-        return false
-    endif
-    if current.Find(joiner) >= 0
-        return true ; already in this scene - nothing to do
-    endif
-    if slf.FindActorController(joiner) >= 0
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab join aborted: joiner already belongs to a different live controller")
-        return false
-    endif
-    Actor[] combined = PapyrusUtil.PushActor(current, joiner)
-    if !StopSexLabControllerAndWait(slf, ctrl, threadID, combined)
-        return false
-    endif
-    return StartSexLabScene(slf, combined, "")
-EndFunction
 
 ; Shift the CURRENT SexLab scene (same actors) to the requested act. SexLab has NO in-thread position swap (no
 ; OThread.WarpTo equivalent), so this does a quick EndAnimation + StartSex restart with animations matching the new
 ; act. If no animation matches, it leaves the current scene running (no pointless teardown) - mirroring the OStim
 ; ShiftOStimSceneToAct "leave current scene on miss" behaviour.
-bool Function ShiftSexLabScene(SexLabFramework slf, int threadID, string sceneAct) global
-    sslThreadController ctrl = slf.GetController(threadID)
-    if ctrl == None
-        return false
-    endif
-    Actor[] liveActors = ctrl.Positions
-    if liveActors.Length < 1
-        return false
-    endif
-    ; SortActors may reorder the array it receives. Copy live controller positions first so role
-    ; normalization cannot mutate the active controller's roster before teardown completes.
-    Actor[] actors = PapyrusUtil.ActorArray(0)
-    int actorIndex = 0
-    while actorIndex < liveActors.Length
-        if liveActors[actorIndex] == None
-            Debug.Trace("[CHIM-NSFW SceneEngine] SexLab shift aborted: live controller returned an invalid actor slot")
-            return false
-        endif
-        actors = PapyrusUtil.PushActor(actors, liveActors[actorIndex])
-        actorIndex += 1
-    endwhile
-    actors = NormalizeSexLabActors(slf, actors)
-    int[] genders = slf.GenderCount(actors)
-    int males = genders[0]
-    int females = genders[1]
-    string tags = SexLabTagsForAct(sceneAct)
-    if tags == ""
-        return false ; unknown/empty act - nothing to steer to, leave the scene as-is
-    endif
-    sslBaseAnimation[] tagged = slf.GetAnimationsByDefaultTags(males, females, false, false, true, tags, "", false)
-    if tagged.Length < 1 && sceneAct == "bloodfeed"
-        ; same embrace-style fallback as StartSexLabScene (fix 2026-07-01)
-        tagged = slf.GetAnimationsByDefaultTags(males, females, false, false, true, "Foreplay,LeadIn", "", false)
-    endif
-    if tagged.Length < 1
-        Debug.Trace("[CHIM-NSFW SceneEngine] SexLab shift: no animation matched act=" + sceneAct + " - leaving current scene")
-        return false
-    endif
-    Debug.Trace("[CHIM-NSFW SceneEngine] SexLab shift: thread " + threadID + " -> act=" + sceneAct + " (" + tagged.Length + " anims)")
-    if !StopSexLabControllerAndWait(slf, ctrl, threadID, actors)
-        return false
-    endif
-    return slf.StartSex(actors, tagged) >= 0
-EndFunction
+
 
 int Function CountMales(Actor[] actors) global
     int males = 0
