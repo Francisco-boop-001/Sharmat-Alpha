@@ -38,10 +38,14 @@ HEAD remains base 123c98d95ce7a54dada6ab34f91d2f4eabe3dffb, branch feature/non-r
 ## Authorized PR submission — 2026-10-19
 
 - [x] Verify saved patch and focused checks; confirm upstream base and GitHub account.
-- [ ] Commit only the reviewed compatibility source, tests and task records.
-- [ ] Create or verify the user's upstream fork; push the feature branch without force.
-- [ ] Open and verify the upstream PR with reproducible checks and explicit gameplay limits.
+- [x] Commit only the reviewed compatibility source, tests and task records.
+- [x] Create or verify the user's upstream fork; push the feature branch without force.
+- [x] Open and verify the upstream PR with reproducible checks and explicit gameplay limits.
 
 User explicitly authorized commit, fork, push and PR. No installation, release/version change, live/server/game data access or gaming distro entry is authorized. Keep the local checkout for review feedback. The earlier no-publication status above describes the completed implementation phase.
 
 PR gate: standalone PHP 8.3.35 -n passes settings round trip, Open Mode 55 assertions, context 10/0, actual crush/Kiss/AcceptSex 6/0 and runtime 82/0. All 13 changed/new PHP files lint, Node syntax and scoped diff check pass. Upstream main is still 123c98d95ce7a54dada6ab34f91d2f4eabe3dffb; authenticated account Francisco-boop-001. No distro, live database or game was accessed. Remaining checklist records post-commit/post-PR receipts locally without altering the reviewed product patch.
+
+## PR submission review
+
+Patch commit a4c6ee58b93c98a47204623e976c001829d8ebd1 is pushed to Francisco-boop-001/Sharmat-Alpha, feature/non-romantic-intimacy. Fork parent and branch hash verified. Upstream PR: https://github.com/Wondernuttz/Sharmat-Alpha/pull/7 (OPEN, base main, mergeable at submission). Its body includes exact reproducible fixture commands, passing results, production-extraction substitutions, MP custom-type creation limitation and the smallest later gameplay checks. The PR is ready for maintainer review; it is not a SHARMAT release or successful gameplay claim. Local checkout remains available for follow-up. No live server, game data, installed mods, WSL distro, provider, package, release or version pin was touched. This final task-record update changes no source or tests; the verified product patch remains a4c6ee5.
