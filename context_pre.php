@@ -63,6 +63,16 @@ if ($actorName !== "" && isset($GLOBALS["ENABLED_FUNCTIONS"]) && is_array($GLOBA
     if (!$rtStripIsNpcScene && !$rtStripSlave && !$rtStripProstitute && !$rtStripSkooma
         && !aiagentNsfwRelTypeSexEligible($actorName)) {
         $rtStrip = ["ExtCmdStartSex","ExtCmdStartBlowJob","ExtCmdStartAnalSex","ExtCmdStartMassage","ExtCmdStartThreesome","ExtCmdStartHandJobSex","ExtCmdStartTitfuck","ExtCmdStartSelfMasturbation","ExtCmdSexCommand","ExtCmdAcceptSex","ExtCmdQuickenPace","ExtCmdSlowPace","ExtCmdRemoveClothes","ExtCmdDrinkBloodSex"];
+        $rtNpcStartCodes = array_values(array_diff(aiagentNsfwSexStartActionCodes(), ["ExtCmdStartThreesome"]));
+        foreach ($rtNpcStartCodes as $startCode) {
+            $targets = aiagentNsfwSexStartTargetOptions($actorName, (array)$rtStripIntimacy, $startCode);
+            if (array_filter($targets, function ($target) { return strcasecmp($target, (string)($GLOBALS['PLAYER_NAME'] ?? '')) !== 0; }) !== []) {
+                $rtStrip = array_values(array_diff($rtStrip, [$startCode]));
+            }
+        }
+        if (aiagentNsfwSexStartTargetOptions($actorName, (array)$rtStripIntimacy, 'ExtCmdStartThreesome') !== []) {
+            $rtStrip = array_values(array_diff($rtStrip, ['ExtCmdStartThreesome']));
+        }
 
         // 1) ENABLED_FUNCTIONS (code names) - keep every downstream ENABLED_FUNCTIONS reader consistent.
         $GLOBALS["ENABLED_FUNCTIONS"] = array_values(array_filter((array)$GLOBALS["ENABLED_FUNCTIONS"], function ($f) use ($rtStrip) { return !in_array($f, $rtStrip, true); }));
@@ -95,6 +105,16 @@ if ($actorName !== "" && isset($GLOBALS["ENABLED_FUNCTIONS"]) && is_array($GLOBA
     $cbIntimacy = function_exists('getIntimacyForActor') ? getIntimacyForActor($actorName) : [];
     if (empty($cbIntimacy["is_npc_scene"])) {
         $cbStrip = ["ExtCmdHug","ExtCmdHoldHands","ExtCmdKiss","ExtCmdStartSex","ExtCmdStartBlowJob","ExtCmdStartAnalSex","ExtCmdStartMassage","ExtCmdStartThreesome","ExtCmdStartHandJobSex","ExtCmdStartTitfuck","ExtCmdStartSelfMasturbation","ExtCmdSexCommand","ExtCmdAcceptSex","ExtCmdRemoveClothes","ExtCmdDrinkBloodSex"];
+        $cbNpcStartCodes = array_values(array_diff(aiagentNsfwSexStartActionCodes(), ["ExtCmdStartThreesome"]));
+        foreach ($cbNpcStartCodes as $startCode) {
+            $targets = aiagentNsfwSexStartTargetOptions($actorName, (array)$cbIntimacy, $startCode);
+            if (array_filter($targets, function ($target) { return strcasecmp($target, (string)($GLOBALS['PLAYER_NAME'] ?? '')) !== 0; }) !== []) {
+                $cbStrip = array_values(array_diff($cbStrip, [$startCode]));
+            }
+        }
+        if (aiagentNsfwSexStartTargetOptions($actorName, (array)$cbIntimacy, 'ExtCmdStartThreesome') !== []) {
+            $cbStrip = array_values(array_diff($cbStrip, ['ExtCmdStartThreesome']));
+        }
         $GLOBALS["ENABLED_FUNCTIONS"] = array_values(array_filter((array)$GLOBALS["ENABLED_FUNCTIONS"], function ($f) use ($cbStrip) { return !in_array($f, $cbStrip, true); }));
         if (isset($GLOBALS["FUNC_LIST"]) && is_array($GLOBALS["FUNC_LIST"]) && function_exists('getFunctionCodeName')) {
             $GLOBALS["FUNC_LIST"] = array_values(array_filter($GLOBALS["FUNC_LIST"], function ($n) use ($cbStrip) { return !in_array(getFunctionCodeName($n), $cbStrip, true); }));
@@ -109,6 +129,126 @@ if ($actorName !== "" && isset($GLOBALS["ENABLED_FUNCTIONS"]) && is_array($GLOBA
     }
 }
 
+// Reconcile the final start-action surfaces after the Player relationship and combat gates.
+// The schema and captured plain-action prose expose the same exact recipient list. Threesome keeps its
+// existing comma-separated group form; one NPC still adds Player in the native consumer.
+if ($actorName !== '' && isset($GLOBALS['ENABLED_FUNCTIONS']) && is_array($GLOBALS['ENABLED_FUNCTIONS'])
+    && function_exists('aiagentNsfwSexStartTargetOptions') && function_exists('getFunctionCodeName')) {
+    $__nrStartCodes = aiagentNsfwSexStartActionCodes();
+    $__nrIntimacy = function_exists('getIntimacyForActor') ? getIntimacyForActor($actorName) : [];
+    $__nrStartTargets = [];
+    $__nrStartNotes = [];
+    $__nrCleanStartDescription = static function ($description) {
+        $description = (string)$description;
+        foreach (['Use one exact listed name, without a RefID suffix', 'Allowed recipient for this action:', 'Allowed recipients for this action:', 'Allowed group members for this action:'] as $marker) {
+            $position = strpos($description, $marker);
+            if ($position !== false) { $description = rtrim(substr($description, 0, $position)); }
+        }
+        return $description;
+    };
+
+    foreach ($__nrStartCodes as $__nrCode) {
+        $__nrTargets = aiagentNsfwSexStartTargetOptions($actorName, (array)$__nrIntimacy, $__nrCode);
+        $__nrAvailable = in_array($__nrCode, $GLOBALS['ENABLED_FUNCTIONS'], true)
+            && aiagentNsfwSexStartActionAvailable($__nrCode)
+            && $__nrTargets !== [];
+        if ($__nrCode === 'ExtCmdStartThreesome') {
+            $__nrNpcTargets = array_values(array_filter($__nrTargets, function ($target) {
+                return strcasecmp($target, (string)($GLOBALS['PLAYER_NAME'] ?? '')) !== 0;
+            }));
+            $__nrPlayerAllowed = in_array((string)($GLOBALS['PLAYER_NAME'] ?? ''), $__nrTargets, true);
+            $__nrAvailable = $__nrAvailable && ($__nrPlayerAllowed || count($__nrNpcTargets) >= 2);
+        }
+        if (!$__nrAvailable) {
+            $GLOBALS['ENABLED_FUNCTIONS'] = array_values(array_filter($GLOBALS['ENABLED_FUNCTIONS'], function ($code) use ($__nrCode) { return $code !== $__nrCode; }));
+        }
+        $__nrStartTargets[$__nrCode] = $__nrAvailable ? $__nrTargets : [];
+        $__nrNames = $__nrStartTargets[$__nrCode];
+        if ($__nrNames !== []) { $__nrStartNotes[$__nrCode] = aiagentNsfwSexStartTargetNote($__nrCode, $__nrNames); }
+    }
+
+    foreach ((array)($GLOBALS['FUNCTIONS'] ?? []) as $__nrIndex => $__nrFunction) {
+        if (!is_array($__nrFunction) || empty($__nrFunction['name'])) { continue; }
+        $__nrCode = getFunctionCodeName($__nrFunction['name']);
+        if (!in_array($__nrCode, $__nrStartCodes, true)
+            || !isset($GLOBALS['FUNCTIONS'][$__nrIndex]['parameters']['properties']['target'])) { continue; }
+        $__nrNote = $__nrStartNotes[$__nrCode] ?? '';
+        if ($__nrCode === 'ExtCmdStartThreesome') {
+            $GLOBALS['FUNCTIONS'][$__nrIndex]['parameters']['properties']['target']['type'] = 'string';
+            unset($GLOBALS['FUNCTIONS'][$__nrIndex]['parameters']['properties']['target']['enum']);
+        } else {
+            $GLOBALS['FUNCTIONS'][$__nrIndex]['parameters']['properties']['target']['enum'] = $__nrStartTargets[$__nrCode] ?? [];
+        }
+        $GLOBALS['FUNCTIONS'][$__nrIndex]['parameters']['properties']['target']['description'] = trim(
+            $__nrCleanStartDescription($GLOBALS['FUNCTIONS'][$__nrIndex]['parameters']['properties']['target']['description'] ?? '')
+            . ($__nrNote === '' ? '' : ' ' . $__nrNote)
+        );
+        $GLOBALS['FUNCTIONS'][$__nrIndex]['description'] = trim(
+            $__nrCleanStartDescription($GLOBALS['FUNCTIONS'][$__nrIndex]['description'] ?? '')
+            . ($__nrNote === '' ? '' : ' ' . $__nrNote)
+        );
+    }
+
+    if (isset($GLOBALS['FUNC_LIST']) && is_array($GLOBALS['FUNC_LIST'])) {
+        $GLOBALS['FUNC_LIST'] = array_values(array_filter($GLOBALS['FUNC_LIST'], function ($display) use ($__nrStartCodes, $__nrStartTargets) {
+            $code = getFunctionCodeName($display);
+            return !in_array($code, $__nrStartCodes, true) || !empty($__nrStartTargets[$code]);
+        }));
+        if (isset($GLOBALS['responseTemplate']['action'])) {
+            $GLOBALS['responseTemplate']['action'] = implode('|', $GLOBALS['FUNC_LIST']);
+        }
+        if (isset($GLOBALS['structuredOutputTemplate']['json_schema']['schema']['properties']['action']['enum'])) {
+            $GLOBALS['structuredOutputTemplate']['json_schema']['schema']['properties']['action']['enum'] = array_values($GLOBALS['FUNC_LIST']);
+        }
+    }
+
+    if (isset($GLOBALS['actionsList']) && is_string($GLOBALS['actionsList'])) {
+        $__nrPromptGateCodes = array_values(array_unique(array_merge($__nrStartCodes, [
+            'ExtCmdStartSelfMasturbation', 'ExtCmdSexCommand', 'ExtCmdQuickenPace', 'ExtCmdSlowPace',
+            'ExtCmdRemoveClothes', 'ExtCmdAcceptSex', 'ExtCmdKiss', 'ExtCmdHug', 'ExtCmdHoldHands',
+        ])));
+        $__nrPromptGateDisplays = [];
+        foreach ($__nrPromptGateCodes as $__nrCode) {
+            $__nrDisplay = trim((string)($GLOBALS['F_NAMES'][$__nrCode] ?? ''));
+            if ($__nrDisplay !== '') { $__nrPromptGateDisplays[$__nrDisplay] = $__nrCode; }
+        }
+        foreach ((array)($GLOBALS['FUNCTIONS'] ?? []) as $__nrFunction) {
+            if (!is_array($__nrFunction) || empty($__nrFunction['name'])) { continue; }
+            $__nrCode = getFunctionCodeName($__nrFunction['name']);
+            if (in_array($__nrCode, $__nrPromptGateCodes, true)) {
+                $__nrPromptGateDisplays[(string)$__nrFunction['name']] = $__nrCode;
+            }
+        }
+        $lines = explode("\n", str_replace("\r\n", "\n", $GLOBALS['actionsList']));
+        $keptLines = [];
+        foreach ($lines as $line) {
+            $matchedCode = null;
+            $matchedDisplay = null;
+            foreach ($__nrPromptGateDisplays as $__nrDisplay => $__nrCode) {
+                if (strpos($line, 'AVAILABLE ACTION: ' . $__nrDisplay . ' (') === 0) {
+                    $matchedCode = $__nrCode;
+                    $matchedDisplay = $__nrDisplay;
+                    break;
+                }
+            }
+            if ($matchedCode !== null) {
+                if (!in_array($matchedCode, (array)($GLOBALS['ENABLED_FUNCTIONS'] ?? []), true)
+                    || !in_array($matchedDisplay, (array)($GLOBALS['FUNC_LIST'] ?? []), true)) { continue; }
+                if (in_array($matchedCode, $__nrStartCodes, true)) {
+                    if (empty($__nrStartTargets[$matchedCode])) { continue; }
+                    $prefix = 'AVAILABLE ACTION: ' . $matchedDisplay . ' (';
+                    if (strpos($line, $prefix) === 0 && substr($line, -1) === ')') {
+                        $description = substr($line, strlen($prefix), -1);
+                        $description = $__nrCleanStartDescription($description);
+                        $line = $prefix . rtrim($description) . '; ' . $__nrStartNotes[$matchedCode] . ')';
+                    }
+                }
+            }
+            $keptLines[] = $line;
+        }
+        $GLOBALS['actionsList'] = implode("\n", $keptLines);
+    }
+}
 // ============================================================
 // TAKE_GOLD AMOUNT ROUTING (tester report 2026-07-04): on structured-JSON connectors there is no
 // tool-args object - the ONLY field that becomes the command parameter is 'target', and nothing told

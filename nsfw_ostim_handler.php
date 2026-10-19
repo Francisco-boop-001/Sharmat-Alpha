@@ -1785,9 +1785,9 @@ class NsfwOstimHandler {
         }
 
         // Log the invite event for narrative purposes
-        $contextMsg = "{$domActor} is approaching {$subActor} with romantic intent.";
+        $contextMsg = "{$domActor} is inviting {$subActor} to an intimate scene. This is only an invitation; it does not establish acceptance or that a scene has started.";
         if ($thirdActor) {
-            $contextMsg = "{$domActor} is approaching {$subActor} and {$thirdActor} with romantic intent.";
+            $contextMsg = "{$domActor} is inviting {$subActor} and {$thirdActor} to an intimate scene. This is only an invitation; it does not establish acceptance or that a scene has started.";
         }
 
         $GLOBALS["gameRequest"][3] = $contextMsg;
