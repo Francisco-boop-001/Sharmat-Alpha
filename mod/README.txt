@@ -1,4 +1,4 @@
-SHARMAT 3.1.9.9 - Complete Game Download Hotfix
+SHARMAT 3.1.9.10 - Plugin Page Discovery Fix
 
 INSTALL / UPDATE
 1. Fully exit Skyrim.
@@ -12,8 +12,10 @@ Requires CHIM and its normal dependencies, plus the enabled OStim or SexLab
 framework and suitable installed animations. Those frameworks and animation
 packs are separate downloads.
 
-This update fixes the web download builder omitting the OStim and SexLab adapter
-scripts. Incomplete local game files now fall back to the matching release ZIP.
+This update restores the Plugin Page link after GitHub Plugin Manager installs
+by supplying the standard index.php entry point. The existing configuration
+page remains available at ext/aiagent_nsfw/config_manager.php on your server.
+It includes the 3.1.9.9 complete-download fix for both framework adapters.
 The game scripts are unchanged from the complete 3.1.9.8 GitHub release.
 
 The included game scripts fix scene-event registration when only OStim or only SexLab is
