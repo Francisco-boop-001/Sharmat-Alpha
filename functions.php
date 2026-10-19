@@ -7,6 +7,10 @@
 
 require_once(__DIR__."/common.php");
 
+if (function_exists('aiagentNsfwBeginIntimacyArrangementOfferReadCache')) {
+    aiagentNsfwBeginIntimacyArrangementOfferReadCache();
+}
+
 // Load NSFW prompts AFTER core prompts (TEMPLATE_DIALOG is now available)
 require_once(__DIR__."/prompts.php");
 
@@ -1935,6 +1939,9 @@ $GLOBALS["FUNCSERV"]["ExtCmdCollectPayment"]=function() {
 
 // POST FILTER HOOK. Used for cleaning actions returned by LLM
 $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+    if (function_exists('aiagentNsfwClearIntimacyArrangementOfferReadCache')) {
+        aiagentNsfwClearIntimacyArrangementOfferReadCache();
+    }
 
     foreach ($actions as $n => $action) {
         $actionParts = explode("|", $action, 3);
@@ -2287,6 +2294,19 @@ if (isset($GLOBALS["gameRequest"]) && $GLOBALS["gameRequest"][0]!="instruction" 
         || $frameworkForcedAggressor
     );
 
+    // An active directed arrangement replaces only this exact Player pair's ordinary
+    // relationship/liking gate. The shared helper retains protection and affair floors.
+    $playerArrangementStartLane = !$isNpcScene && !$isSlave && !$isProstitute
+        && empty($intimacyStatus['refused_until_scene_end'])
+        && empty($intimacyStatus['refusal_expressed'])
+        && (($intimacyStatus['scene_phase'] ?? '') !== 'rejected')
+        && !(($intimacyStatus['scene_phase'] ?? '') === 'tier_prompt'
+            && (int)($intimacyStatus['intensity_tier'] ?? 0) >= 3
+            && empty($intimacyStatus['accepted_sex']))
+        && function_exists('aiagentNsfwIntimacyArrangementAllowsSexPair')
+        && aiagentNsfwIntimacyArrangementAllowsSexPair($npcName, $GLOBALS['PLAYER_NAME'] ?? 'Player')
+        && (!function_exists('aiagentNsfwRelTypeSexEligible') || aiagentNsfwRelTypeSexEligible($npcName, true));
+
 // Only offer this action if sex disposal is >20 for this actor (when gating enabled)
     if (isset($intimacyStatus["level"])&&$intimacyStatus["level"]==0) {
 
@@ -2317,7 +2337,7 @@ if (isset($GLOBALS["gameRequest"]) && $GLOBALS["gameRequest"][0]!="instruction" 
             $currentArousal = $intimacyStatus["sex_disposal"] ?? 0;
             $isNaked = $intimacyStatus["is_naked"] ?? 0;
             // Fond+ (>=56): a regular NPC has her OWN autonomy to initiate sex - she does not need AcceptSex.
-            $_consentedFns = $frameworkForcedAggressor || !empty($intimacyStatus["accepted_sex"]) || $isSlave || $npcSceneGateDisabled || $skoomaBargain || ($affinity >= $sceneCallMinAffinity);
+            $_consentedFns = $frameworkForcedAggressor || !empty($intimacyStatus["accepted_sex"]) || $isSlave || $npcSceneGateDisabled || $skoomaBargain || ($affinity >= $sceneCallMinAffinity) || $playerArrangementStartLane;
             // Sticky refusal also blocks re-initiating sex acts until the scene ends.
             if (!$isSlave && !empty($intimacyStatus["refused_until_scene_end"])) { $_consentedFns = false; }
 
@@ -2370,7 +2390,7 @@ if (isset($GLOBALS["gameRequest"]) && $GLOBALS["gameRequest"][0]!="instruction" 
                 $_consentedFns = $frameworkForcedAggressor || $prostituteServiceUnlocked || $isSlave || $npcSceneGateDisabled || $skoomaBargain;
             } else {
                 // Fond+ (>=56): a regular NPC has her OWN autonomy to initiate sex - she does not need AcceptSex.
-                $_consentedFns = $frameworkForcedAggressor || !empty($intimacyStatus["accepted_sex"]) || $isSlave || $npcSceneGateDisabled || $skoomaBargain || ($affinity >= $sceneCallMinAffinity);
+                $_consentedFns = $frameworkForcedAggressor || !empty($intimacyStatus["accepted_sex"]) || $isSlave || $npcSceneGateDisabled || $skoomaBargain || ($affinity >= $sceneCallMinAffinity) || $playerArrangementStartLane;
             }
             // Sticky refusal also blocks re-initiating sex acts until the scene ends.
             if (!$isSlave && !empty($intimacyStatus["refused_until_scene_end"])) { $_consentedFns = false; }
@@ -2519,7 +2539,7 @@ if (isset($GLOBALS["gameRequest"]) && $GLOBALS["gameRequest"][0]!="instruction" 
             && ($openModeAdultPlayerRoute
                 || (((int)$affinity >= $sceneCallMinAffinity)
                     && function_exists('aiagentNsfwRelTypeSexEligible')
-                    && aiagentNsfwRelTypeSexEligible($npcName)));
+                    && aiagentNsfwRelTypeSexEligible($npcName, false)));
         $playerNeedsDecision =
             empty($intimacyStatus["is_npc_scene"])
             && (int)($intimacyStatus["intensity_tier"] ?? 0) >= 3
@@ -2728,7 +2748,19 @@ if (isset($GLOBALS["gameRequest"]) && $GLOBALS["gameRequest"][0]!="instruction" 
 	        // initiate a scene. Strip the sex-act initiators + scene driver unless romanticized (Fond+, aff>=56),
 	        // already consented, slave, or skooma-bargain. Affection + Accept/Refuse stay so they can still react.
 	        $fallbackAffinity = function_exists('getNpcAffinity') ? (int)getNpcAffinity($fallbackNpcName) : 0;
+	        $fallbackPendingDecision = (($fallbackIntimacy['scene_phase'] ?? '') === 'tier_prompt')
+	            && (int)($fallbackIntimacy['intensity_tier'] ?? 0) >= 3
+	            && empty($fallbackIntimacy['accepted_sex']);
+	        $fallbackArrangementLane = !$fallbackIsSlaveActor && !$fallbackIsProstitute
+	            && empty($fallbackIntimacy['is_npc_scene']) && !$fallbackPendingDecision
+	            && empty($fallbackIntimacy['refused_until_scene_end'])
+	            && empty($fallbackIntimacy['refusal_expressed'])
+	            && (($fallbackIntimacy['scene_phase'] ?? '') !== 'rejected')
+	            && function_exists('aiagentNsfwIntimacyArrangementAllowsSexPair')
+	            && aiagentNsfwIntimacyArrangementAllowsSexPair($fallbackNpcName, $GLOBALS['PLAYER_NAME'] ?? 'Player')
+	            && (!function_exists('aiagentNsfwRelTypeSexEligible') || aiagentNsfwRelTypeSexEligible($fallbackNpcName, true));
 		        $fallbackConsented = !empty($fallbackIntimacy["accepted_sex"]) || $fallbackIsSlaveActor || $fallbackSkoomaBargain || ($fallbackAffinity >= $fallbackSceneCallMin)
+		            || $fallbackArrangementLane
 		            || (function_exists('aiagentNsfwOpenMode') && aiagentNsfwOpenMode());   // OPEN MODE: strangers keep the toolset (sticky refusal below still dominates; prostitutes still charge)
 		        // REFUSAL DOMINATES (fix 2026-07-01): mirror the main route's sticky-refusal block (~2248). Without this a
 		        // refusing Fond+ NPC kept Start* tools on funcret turns and their FUNCSERV auto-consent ERASED the refusal.
@@ -2787,6 +2819,28 @@ $GLOBALS['AIAGENTNSFW_PLAYER_START_OFFER_SNAPSHOT'] = array_values(array_interse
     $targetedSexStartCodes,
     (array)($GLOBALS['ENABLED_FUNCTIONS'] ?? [])
 ));
+
+// A low-affinity arrangement can expose initiation actions without the existing Fond+ cue.
+// Add a narrow current-intent cue only when a Player start survived the real offer pipeline.
+$arrangementCueStatus = is_array($intimacyStatus ?? null) ? $intimacyStatus : [];
+$arrangementCuePendingDecision = (($arrangementCueStatus['scene_phase'] ?? '') === 'tier_prompt')
+    && (int)($arrangementCueStatus['intensity_tier'] ?? 0) >= 3
+    && empty($arrangementCueStatus['accepted_sex']);
+$arrangementCueStarts = array_intersect(
+    ['ExtCmdStartSex', 'ExtCmdStartBlowJob', 'ExtCmdStartAnalSex', 'ExtCmdStartThreesome', 'ExtCmdStartTitfuck', 'ExtCmdStartHandJobSex', 'ExtCmdStartHandjobSex'],
+    $GLOBALS['AIAGENTNSFW_PLAYER_START_OFFER_SNAPSHOT']
+);
+if (empty($arrangementCueStatus['is_npc_scene'])
+    && (int)($arrangementCueStatus['level'] ?? 0) === 0
+    && !$arrangementCuePendingDecision
+    && empty($arrangementCueStatus['refused_until_scene_end'])
+    && empty($arrangementCueStatus['refusal_expressed'])
+    && (($arrangementCueStatus['scene_phase'] ?? '') !== 'rejected')
+    && $arrangementCueStarts !== []
+    && function_exists('aiagentNsfwIntimacyArrangementAllowsSexPair')
+    && aiagentNsfwIntimacyArrangementAllowsSexPair($GLOBALS['HERIKA_NAME'] ?? '', $GLOBALS['PLAYER_NAME'] ?? 'Player')) {
+    $GLOBALS['AIAGENTNSFW_ARRANGEMENT_INITIATION'] = true;
+}
 
 // Add only the NPC target route after recording which starts the original per-action
 // offer builder allowed for Player. Newly added starts therefore cannot restore Player.

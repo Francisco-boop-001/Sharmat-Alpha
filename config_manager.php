@@ -1393,6 +1393,20 @@ SQL;
             } else {
                 $enabled = $rtCurrentPolicy['valid'] ? $rtCurrentPolicy['enabled'] : true;
             }
+            if (array_key_exists('use_intimacy_arrangements', $_POST)) {
+                if ($_POST['use_intimacy_arrangements'] === true || $_POST['use_intimacy_arrangements'] === 'true') {
+                    $useIntimacyArrangements = true;
+                } elseif ($_POST['use_intimacy_arrangements'] === false || $_POST['use_intimacy_arrangements'] === 'false') {
+                    $useIntimacyArrangements = false;
+                } else {
+                    throw new Exception('Invalid intimacy-arrangement policy flag');
+                }
+            } else {
+                if (!$rtCurrentPolicy['valid'] && $rtReadStatus !== 'missing') {
+                    throw new Exception('Cannot preserve intimacy-arrangement policy from an invalid saved config');
+                }
+                $useIntimacyArrangements = $rtCurrentPolicy['use_intimacy_arrangements'] ?? false;
+            }
             if (array_key_exists('non_romantic_types', $_POST)) {
                 $nonRomantic = $parsePostedList('non_romantic_types');
             } else {
@@ -1405,6 +1419,7 @@ SQL;
                 'enabled' => $enabled,
                 'eligible_types' => $eligible,
                 'non_romantic_types' => $nonRomantic,
+                'use_intimacy_arrangements' => $useIntimacyArrangements,
             ]);
             if (!$normalized['valid']) {
                 throw new Exception('Invalid relationship-type settings');
@@ -1431,6 +1446,7 @@ SQL;
                 'enabled'         => $normalized['enabled'],
                 'eligible_types'  => $normalized['eligible_types'],
                 'non_romantic_types' => $normalized['non_romantic_types'],
+                'use_intimacy_arrangements' => $normalized['use_intimacy_arrangements'],
                 'prompt_friendly' => $rtPrompt('prompt_friendly'),
                 'prompt_fond'     => $rtPrompt('prompt_fond'),
                 'prompt_devoted'  => $rtPrompt('prompt_devoted'),
@@ -7945,6 +7961,7 @@ PROMPT;
             document.querySelectorAll('.reltype-nonromantic-checkbox:checked').forEach(function(cb) { nonRomantic.push(cb.value); });
             const formData = new FormData();
             formData.append('enabled', document.getElementById('reltypeEnabled').checked);
+            formData.append('use_intimacy_arrangements', document.getElementById('reltypeUseIntimacyArrangements').checked);
             formData.append('eligible_types', JSON.stringify(eligible));
             formData.append('non_romantic_types', JSON.stringify(nonRomantic));
             formData.append('prompt_friendly', document.getElementById('reltypePromptFriendly').value);

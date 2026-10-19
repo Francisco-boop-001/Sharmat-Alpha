@@ -32,6 +32,7 @@ $_rtReadError = $_rtReadStatus === 'error';
 $_rtEnabled  = $_rtPolicy['enabled'];
 $_rtEligible = $_rtPolicy['eligible_types'];
 $_rtNonRomantic = $_rtPolicy['non_romantic_types'];
+$_rtUseIntimacyArrangements = $_rtPolicy['use_intimacy_arrangements'];
 // Treat an EMPTY saved string as "use the default". A blank save previously wiped these to '' -> empty textareas ->
 // the gate silently no-op'd. The ?? operator alone does NOT catch '' (empty string is not null), so sanitize blanks.
 $_rtVal = function ($v, $d) { return (is_string($v) && trim($v) !== '') ? $v : $d; };
@@ -103,6 +104,14 @@ $_rtEmoji = RelationshipManager::TYPE_EMOJI;
                             <span>Enable Relationship-Type Gating</span>
                         </label>
                         <p class="legend" style="color: #9988BB; font-size: 11px; margin: 8px 0 0 30px;">When OFF, this whole section is bypassed &mdash; every NPC falls back to the normal affinity tier prompts (no type restriction).</p>
+                    </div>
+
+                    <div class="settings-checkbox-group" style="margin-top:12px;">
+                        <label>
+                            <input type="checkbox" id="reltypeUseIntimacyArrangements" <?php echo $_rtUseIntimacyArrangements ? 'checked' : ''; ?>>
+                            <span>Use current directed intimacy arrangements</span>
+                        </label>
+                        <p class="legend" style="color: #9988BB; font-size: 11px; margin: 8px 0 0 30px;">When enabled, a validated current Mind Poisoning arrangement may replace the ordinary type and affinity gate for that exact NPC-to-partner direction. It does not change relationship type or affinity, and does not establish the partner's agreement or current consent. Off by default; unavailable or older Mind Poisoning APIs grant no arrangement lane.</p>
                     </div>
 
                     <!-- The tiered polite-refusal prompts -->

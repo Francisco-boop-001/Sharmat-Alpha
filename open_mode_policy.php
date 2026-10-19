@@ -107,6 +107,7 @@ function aiagentNsfwNormalizeRelTypeConfig($config, $readStatus = 'present')
         'enabled' => true,
         'eligible_types' => ['romantic', 'crush', 'ex'],
         'non_romantic_types' => [],
+        'use_intimacy_arrangements' => false,
     ];
     $invalid = static function ($status) {
         return [
@@ -115,6 +116,7 @@ function aiagentNsfwNormalizeRelTypeConfig($config, $readStatus = 'present')
             'enabled' => true,
             'eligible_types' => [],
             'non_romantic_types' => [],
+            'use_intimacy_arrangements' => false,
         ];
     };
 
@@ -132,6 +134,9 @@ function aiagentNsfwNormalizeRelTypeConfig($config, $readStatus = 'present')
     }
 
     if (array_key_exists('enabled', $values) && !is_bool($values['enabled'])) {
+        return $invalid('malformed');
+    }
+    if (array_key_exists('use_intimacy_arrangements', $values) && !is_bool($values['use_intimacy_arrangements'])) {
         return $invalid('malformed');
     }
 
@@ -171,6 +176,9 @@ function aiagentNsfwNormalizeRelTypeConfig($config, $readStatus = 'present')
         'enabled' => array_key_exists('enabled', $values) ? $values['enabled'] : true,
         'eligible_types' => $eligible,
         'non_romantic_types' => $nonRomantic,
+        'use_intimacy_arrangements' => array_key_exists('use_intimacy_arrangements', $values)
+            ? $values['use_intimacy_arrangements']
+            : false,
     ];
 }
 

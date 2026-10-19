@@ -49,3 +49,13 @@ PR gate: standalone PHP 8.3.35 -n passes settings round trip, Open Mode 55 asser
 ## PR submission review
 
 Patch commit a4c6ee58b93c98a47204623e976c001829d8ebd1 is pushed to Francisco-boop-001/Sharmat-Alpha, feature/non-romantic-intimacy. Fork parent and branch hash verified. Upstream PR: https://github.com/Wondernuttz/Sharmat-Alpha/pull/7 (OPEN, base main, mergeable at submission). Its body includes exact reproducible fixture commands, passing results, production-extraction substitutions, MP custom-type creation limitation and the smallest later gameplay checks. The PR is ready for maintainer review; it is not a SHARMAT release or successful gameplay claim. Local checkout remains available for follow-up. No live server, game data, installed mods, WSL distro, provider, package, release or version pin was touched. This final task-record update changes no source or tests; the verified product patch remains a4c6ee5.
+
+## Intimacy arrangements consumer integration — 2026-10-19
+
+- [x] Read the approved MP intimacy-arrangement spec and Task 3 plan; pin the consumer projection and compatibility gates.
+- [x] Add a targeted production-path RED fixture for missing/off/active/ended/unavailable policy, exact-pair eligibility, automatic crush, and final action filtering.
+- [x] Implement the default-off SHARMAT setting and consume only validated exact-pair MP state in existing eligibility, prompt/context, and dispatch paths.
+- [x] Run focused SHARMAT tests and the real MP API synthetic-store integration fixture; verify syntax and bounded diff.
+- [x] Record changed files, test commands/results, evidence limits, and a review section in the implementation report.
+
+Review: frozen SHARMAT implementation independently reviewed. Arrangement consumer 95/0, settings 12/0, and real MP API integration 9/0 passed; lead reran existing Open Mode 55 and non-romantic runtime 82/0 against the frozen current source. PHP/Node syntax and scoped diff checks passed. Detailed hashes and seams are in `artifacts/mp-intimacy-arrangements-20261019/sharmat-implementation.md`. No MP files, live services, game, WSL, providers, or Git history operations were used.

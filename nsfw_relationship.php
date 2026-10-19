@@ -582,6 +582,11 @@ class NsfwRelationship {
                 // allows the player - so the prompt and the mechanical gate never disagree.
                 $typeIsEligibleOv = ((int)($relationship['aff'] ?? 0) >= 6)
                     && (!function_exists('aiagentNsfwOrientationAllowsPlayer') || aiagentNsfwOrientationAllowsPlayer($npcName));
+            } elseif ($rtPolicyValidOv && !empty($rtPolicyOv['use_intimacy_arrangements'])
+                && function_exists('aiagentNsfwRelTypeSexEligible')
+                && aiagentNsfwRelTypeSexEligible($npcName, true)) {
+                // Match the exact current Player-pair policy; this suppresses only the type-gate refusal.
+                $typeIsEligibleOv = true;
             }
 
             if (!$typeIsEligibleOv) {
@@ -1249,6 +1254,9 @@ class NsfwRelationship {
         // Sex-eligible types go through the normal rel gate
         $eligible = $policyValid ? $policy['eligible_types'] : [];
         if (in_array($relType, $eligible, true)) { return null; }
+        if ($policyValid && !empty($policy['use_intimacy_arrangements'])
+            && function_exists('aiagentNsfwRelTypeSexEligible')
+            && aiagentNsfwRelTypeSexEligible($npcName, true)) { return null; }
 
         // Tier comes from CHIM (single source of truth) - never hardcode the 56/76/91 boundaries.
         // getTierLabel() owns the bands; if CHIM rebalances them this gate tracks them automatically.
